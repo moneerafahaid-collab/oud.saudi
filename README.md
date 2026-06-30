@@ -6,7 +6,7 @@
 
 بعد تفعيل GitHub Pages، ستكون المعاينة متاحة على:
 
-`https://<اسم-المستخدم>.github.io/<اسم-المستودع>/`
+`https://moneerafahaid-collab.github.io/oud.saudi/`
 
 ## التشغيل محلياً
 
