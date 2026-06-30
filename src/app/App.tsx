@@ -522,7 +522,7 @@ function Header({ page, setPage, loggedIn, setLoggedIn }:{
         <div className="max-w-7xl mx-auto px-4 h-18 flex items-center justify-between gap-4 py-2">
           {/* Brand */}
           <button onClick={()=>setPage("home")} className="flex items-center gap-3 flex-shrink-0 hover:opacity-90 transition-opacity">
-            <ImageWithFallback src={platformLogo} alt="عَود" className="h-14 w-auto object-contain"/>
+            <ImageWithFallback src={platformLogo} alt="عَود" className="h-12 w-12 sm:h-14 sm:w-14 object-cover rounded-lg shadow-sm"/>
             <div className="text-right leading-tight hidden sm:block">
               <div className="text-xs" style={{color:"var(--muted-foreground)"}}>منصة عَوُد السعودية</div>
             </div>
