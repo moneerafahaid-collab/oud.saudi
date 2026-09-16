@@ -4,8 +4,6 @@
 
 ## معاينة التصميم
 
-بعد تفعيل GitHub Pages، ستكون المعاينة متاحة على:
-
 `https://moneerafahaid-collab.github.io/oud.saudi/`
 
 ## التشغيل محلياً

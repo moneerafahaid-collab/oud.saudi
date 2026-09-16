@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>اختبار المسح الميداني — درون</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --g: #1A4731;
+      --gd: #0F2E1F;
+      --gold: #C9A84C;
+      --warn: #D97706;
+      --danger: #B91C1C;
+      --soil: #7C5E3C;
+      --muted: #6B7C6B;
+      --bg: #F4F6F3;
+      --panel: #ffffff;
+      --border: #D8E0D6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "IBM Plex Sans Arabic", sans-serif;
+      background: var(--bg);
+      color: var(--gd);
+      height: 100vh;
+      overflow: hidden;
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      height: 100vh;
+    }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .side { max-height: 46vh; overflow: auto; }
+    }
+
+    /* Sidebar */
+    .side {
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 5;
+    }
+    .side-head {
+      padding: 1.1rem 1.25rem;
+      background: linear-gradient(135deg, var(--gd), var(--g));
+      color: #fff;
+    }
+    .side-head .tag {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--gd);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      margin-bottom: 0.55rem;
+    }
+    .side-head h1 { font-size: 1.15rem; font-weight: 700; line-height: 1.4; }
+    .side-head p { font-size: 0.78rem; color: #B8D0B8; margin-top: 0.35rem; }
+
+    .steps {
+      display: flex;
+      gap: 0.35rem;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    .step-dot {
+      flex: 1;
+      min-width: 48px;
+      text-align: center;
+      font-size: 0.65rem;
+      color: var(--muted);
+    }
+    .step-dot .bar {
+      height: 4px;
+      border-radius: 99px;
+      background: #E2E8E0;
+      margin-bottom: 0.35rem;
+    }
+    .step-dot.active .bar { background: var(--gold); }
+    .step-dot.done .bar { background: var(--g); }
+    .step-dot.active { color: var(--g); font-weight: 700; }
+
+    .side-body {
+      flex: 1;
+      overflow: auto;
+      padding: 1.1rem 1.25rem;
+    }
+    .side-body h2 {
+      font-size: 1.05rem;
+      margin-bottom: 0.4rem;
+    }
+    .side-body .desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 1rem;
+    }
+
+    .card {
+      background: #F7FAF6;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem;
+      margin-bottom: 0.75rem;
+    }
+    .card h3 {
+      font-size: 0.82rem;
+      color: var(--g);
+      margin-bottom: 0.45rem;
+    }
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      padding: 0.35rem 0;
+      border-bottom: 1px dashed #E0E8DC;
+    }
+    .metric:last-child { border-bottom: 0; }
+    .metric strong { color: var(--gd); font-variant-numeric: tabular-nums; }
+    .badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+    .badge.ok { background: #D1FAE5; color: #065F46; }
+    .badge.warn { background: #FEF3C7; color: #92400E; }
+    .badge.danger { background: #FEE2E2; color: #991B1B; }
+    .badge.info { background: #E0E7FF; color: #3730A3; }
+
+    .log {
+      max-height: 140px;
+      overflow: auto;
+      font-size: 0.75rem;
+      background: var(--gd);
+      color: #C8E0C8;
+      border-radius: 8px;
+      padding: 0.7rem;
+      line-height: 1.65;
+      font-family: ui-monospace, monospace;
+      direction: ltr;
+      text-align: left;
+    }
+    .log .line { opacity: 0; animation: fadeIn 0.35s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .side-foot {
+      padding: 0.9rem 1.25rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 0.5rem;
+    }
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 0.7rem 1rem;
+      transition: 0.15s;
+    }
+    .btn-primary {
+      flex: 1;
+      background: var(--gold);
+      color: var(--gd);
+    }
+    .btn-primary:hover { filter: brightness(1.05); }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: #F0F4EF; }
+
+    /* Map */
+    .map-wrap { position: relative; min-height: 0; }
+    #map { width: 100%; height: 100%; background: #1a2e1a; }
+    .map-overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 1000;
+      background: rgba(15, 46, 31, 0.88);
+      color: #fff;
+      padding: 0.55rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(201, 168, 76, 0.35);
+      pointer-events: none;
+    }
+    .map-overlay strong { color: var(--gold); }
+
+    .legend {
+      position: absolute;
+      bottom: 24px;
+      left: 12px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.72rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      border: 1px solid var(--border);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin: 0.25rem 0;
+    }
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* Leaflet custom markers */
+    .pin {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .pin.seq { background: var(--warn); }
+    .pin.infect { background: var(--danger); width: 34px; height: 34px; font-size: 14px; }
+    .pin.waste { background: #B91C1C; border-radius: 4px; }
+    .waste-label {
+      background: rgba(185, 28, 28, 0.95);
+      color: #fff;
+      border: 1px solid #fff;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: "IBM Plex Sans Arabic", sans-serif;
+      white-space: nowrap;
+      text-align: center;
+      line-height: 1.35;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+    .hum-label {
+      background: rgba(230, 126, 34, 0.95);
+      color: #fff;
+      border: 1px solid #fff;
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: "IBM Plex Sans Arabic", sans-serif;
+      white-space: nowrap;
+      text-align: center;
+      line-height: 1.35;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+    .hum-label small { display: block; font-size: 10px; font-weight: 600; opacity: 0.95; }
+    .diag-box {
+      background: #FFF7ED;
+      border: 1px solid #FDBA74;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-top: 0.65rem;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      color: #9A3412;
+    }
+    .scenario-bad {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-top: 0.55rem;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      color: #991B1B;
+    }
+    .scenario-good {
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-top: 0.55rem;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      color: #065F46;
+    }
+    .scenario-bad strong, .scenario-good strong { display: block; margin-bottom: 0.25rem; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin: 0.75rem 0;
+    }
+    .kpi {
+      background: #F7FAF6;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.7rem 0.65rem;
+      text-align: center;
+    }
+    .kpi .kpi-val {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--gd);
+      line-height: 1.2;
+      margin-bottom: 0.2rem;
+    }
+    .kpi .kpi-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .kpi.warn .kpi-val { color: #C2410C; }
+    .kpi.danger .kpi-val { color: #B91C1C; }
+    .kpi.ok .kpi-val { color: #047857; }
+    .kpi.gold .kpi-val { color: #92640A; }
+    .export-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-top: 0.75rem;
+    }
+    .export-row button {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.6rem 0.7rem;
+      font-size: 0.78rem;
+    }
+    .btn-download {
+      background: var(--g);
+      color: #fff;
+    }
+    .btn-json {
+      background: #1E3A5F;
+      color: #fff;
+    }
+    .pin.soil { background: var(--soil); }
+    .pin.drone {
+      background: var(--gold);
+      color: var(--gd);
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(201,168,76,0.6); }
+      50% { transform: scale(1.08); box-shadow: 0 0 0 10px rgba(201,168,76,0); }
+    }
+
+    .scan-banner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1000;
+      background: rgba(15,46,31,0.92);
+      color: #fff;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+      border: 1px solid var(--gold);
+      display: none;
+    }
+    .scan-banner.show { display: block; animation: fadeIn 0.3s; }
+    .scan-banner .spin {
+      width: 28px; height: 28px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      margin: 0 auto 0.6rem;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .done-box {
+      text-align: center;
+      padding: 0.5rem 0 1rem;
+    }
+    .done-box .check {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: #D1FAE5;
+      color: #065F46;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      margin: 0 auto 0.75rem;
+    }
+    .edit-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-top: 0.75rem;
+    }
+    .edit-row button {
+      flex: 1;
+      min-width: 110px;
+      padding: 0.55rem 0.7rem;
+      font-size: 0.8rem;
+    }
+    .btn-edit {
+      background: var(--g);
+      color: #fff;
+    }
+    .btn-save {
+      background: var(--gold);
+      color: var(--gd);
+    }
+    .hint-edit {
+      margin-top: 0.65rem;
+      padding: 0.55rem 0.7rem;
+      background: #FEF9EE;
+      border: 1px solid #E8D7A8;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      color: #7A5C14;
+      line-height: 1.6;
+      display: none;
+    }
+    .hint-edit.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <div class="side-head">
+        <div class="tag">منصة عَود · اختبار ميداني</div>
+        <h1>مسح الدرون ورصد المخلفات</h1>
+        <p>تحديد المزرعة ← الدرون ← المخلفات ← رصد الإصابات ← التقرير</p>
+      </div>
+
+      <div class="steps" id="stepDots"></div>
+
+      <div class="side-body" id="stepContent"></div>
+
+      <div class="side-foot">
+        <button type="button" class="btn-ghost" id="btnBack" disabled>رجوع</button>
+        <button type="button" class="btn-primary" id="btnNext">بدء التحديد</button>
+      </div>
+    </aside>
+
+    <div class="map-wrap">
+      <div id="map"></div>
+      <div class="map-overlay" id="mapStatus">
+        جاهز للمسح · <strong>مزرعة تجريبية — حائل</strong>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="scan-banner" id="scanBanner">
+        <div class="spin"></div>
+        <div style="font-weight:700;margin-bottom:0.25rem">الدرون يقوم بالمسح…</div>
+        <div style="font-size:0.75rem;color:#A8C8A8" id="scanPct">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.min.js"></script>
+  <script>
+    /* ═══════════════════════════════════════════
+       إحداثيات المزرعة التجريبية — شمال حائل
+       (يمكن استبدالها بإحداثياتكم الحقيقية)
+       ═══════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════
+       حدود مزرعة بن جميعة الوقفية — مكبّرة
+       لتغطية كامل بستان النخيل (الجسم + الامتداد الجنوبي)
+       الدبوس: 27.873171 , 41.714444
+       ═══════════════════════════════════════════ */
+    const FARM = {
+      id: "FARM-BIN-JUMAIAH",
+      name: "مزرعة بن جميعة الوقفية",
+      // حدود المزرعة الكبيرة (شكل L) لتطابق تحديدك
+      boundary: [
+        [27.87860, 41.70940],
+        [27.87890, 41.71380],
+        [27.87910, 41.71715],
+        [27.87080, 41.71725],
+        [27.86240, 41.71735],
+        [27.86230, 41.71590],
+        [27.87060, 41.71580],
+        [27.87040, 41.70960],
+      ],
+      center: [27.87050, 41.71440],
+      waste: [
+        {
+          id: "W1",
+          label: "مخلفات نباتية",
+          tons: 3.5,
+          // 27.871338, 41.715910
+          bounds: [[27.87100, 41.71555], [27.87168, 41.71627]],
+        },
+        {
+          id: "W2",
+          label: "مخلفات نباتية",
+          tons: 5.0,
+          // 27.875557, 41.714182
+          bounds: [[27.87522, 41.71382], [27.87590, 41.71454]],
+        },
+        {
+          id: "W3",
+          label: "مخلفات نباتية",
+          tons: 4.5,
+          // 27.865765, 41.721484
+          bounds: [[27.86543, 41.72112], [27.86610, 41.72185]],
+        },
+      ],
+      infection: {
+        target: [27.874741, 41.720043],
+        label: "اشتباه إصابة — نخلة رقم N-47",
+        radiusM: 98,
+        // قراءات رطوبة عالية حول محيط دائرة الإصابة (مقياس فحص 1–10)
+        humidityPoints: [
+          { id: "H1", value: 6, level: "عالية", bearing: 210 }, // جنوب غرب المحيط
+          { id: "H2", value: 7, level: "عالية جدًا", bearing: 40 },  // شمال شرق المحيط
+        ],
+        diagnosis: {
+          risk: "احتمال إصابة مرتفع",
+          cause: "رطوبة عالية حول المحيط تهيّئ بيئة لتعفن ينتج أمراضًا فطرية أو العفن الأسود (الهبابي)",
+          fieldFinding: "رصد الفريق الميداني بداية تعفن الأسود",
+        },
+        path: [
+          [27.869977, 41.714245],
+          [27.870850, 41.715300],
+          [27.871750, 41.716400],
+          [27.872700, 41.717500],
+          [27.873650, 41.718650],
+          [27.874300, 41.719400],
+          [27.874741, 41.720043],
+        ],
+      },
+      soilSensor: {
+        position: [27.87420, 41.71940], // قرب دائرة الإصابة لربط الفحص
+        readings: {
+          moisture: 58.6, // رطوبة تربة مرتفعة — تدعم بيئة فطرية
+          ph: 6.4,
+          ec: 2.35,
+          nitrogen: 38,
+          temp: 29.8,
+        },
+        linkNote: "القراءات مرتبطة بمنطقة الإصابة: رطوبة تربة مرتفعة تدعم انتشار التعفن الأسود",
+      },
+      report: {
+        untreated: {
+          nowRadiusM: 98,
+          week2RadiusM: 160,
+          month1RadiusM: 240,
+          riskText: "بدون معالجة، الرطوبة العالية وعدوى الأبواغ تزيدان سرعة الانتشار داخل المساحة المنزرعة",
+          spreadNote: "يُتوقع توسّع البقعة المصابة وانتقال العدوى للنخيل المجاور عبر الهواء والرطوبة والملامسة",
+        },
+        treated: {
+          service: "خدمة الإزالة + سماد عضوي مع معالج مضاد للتعفن الأسود (الهبابي)",
+          benefit: "كبح النمو الفطري، خفض الرطوبة الموضعية الضارة، وتغذية التربة بسماد معالج يمنع عودة الإصابة",
+        },
+      },
+    };
+
+    // نسخة أصلية للاستعادة + تحميل آخر تعديل محفوظ
+    const DEFAULT_BOUNDARY = FARM.boundary.map(p => [...p]);
+    const DEFAULT_CENTER = [...FARM.center];
+    try {
+      const saved = JSON.parse(localStorage.getItem("field_test_farm_boundary") || "null");
+      if (Array.isArray(saved) && saved.length >= 3) FARM.boundary = saved;
+      const savedCenter = JSON.parse(localStorage.getItem("field_test_farm_center") || "null");
+      if (Array.isArray(savedCenter) && savedCenter.length === 2) FARM.center = savedCenter;
+    } catch (_) {}
+
+    let editMode = false;
+
+    const STEPS = [
+      { id: "farm",    title: "تحديد المزرعة",     short: "المزرعة" },
+      { id: "scan",    title: "مسح الدرون",        short: "المسح" },
+      { id: "waste",   title: "رصد المخلفات",      short: "مخلفات" },
+      { id: "infect",  title: "مسار الإصابة",      short: "إصابة" },
+      { id: "soil",    title: "حساس التربة",       short: "تربة" },
+      { id: "report",  title: "تقرير وتنبؤ",       short: "تقرير" },
+    ];
+
+    const G = "#1A4731";
+    const GOLD = "#C9A84C";
+    const EDGE = "#22C55E"; // لون حواف المزرعة (نفس التحديد الأخضر)
+    const INFECT = "#E67E22"; // برتقالي — دائرة اشتباه الإصابة
+    const WARN = "#D97706";
+    const DANGER = "#B91C1C";
+    const SOIL = "#7C5E3C";
+
+    let step = 0;
+    let map, layers = {};
+    let scanDone = false;
+    let logLines = [];
+
+    // ── Map init ──
+    // ── Map init — صور أقمار صناعية من Google (بدل Esri التي تظهر Map data not yet available)
+    map = L.map("map", {
+      zoomControl: true,
+      attributionControl: true,
+      maxZoom: 20,
+    }).setView(FARM.center, 16);
+
+    // خلفية محايدة حتى لا تظهر نصوص بلاطات فاشلة
+    document.getElementById("map").style.background = "#1a2a1a";
+
+    const googleSat = L.tileLayer("https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", {
+      subdomains: ["0", "1", "2", "3"],
+      maxZoom: 20,
+      attribution: "Google Satellite",
+    });
+
+    const googleHybrid = L.tileLayer("https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", {
+      subdomains: ["0", "1", "2", "3"],
+      maxZoom: 20,
+      attribution: "Google Hybrid",
+    });
+
+    // مشابه لعرض Google Earth (قمر صناعي واضح)
+    const googleEarthLike = L.tileLayer("https://mt{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}", {
+      subdomains: ["0", "1", "2", "3"],
+      maxZoom: 20,
+      attribution: "Google Earth-like",
+    });
+
+    googleSat.addTo(map);
+
+    L.control.layers(
+      {
+        "قمر صناعي Google": googleSat,
+        "Google Hybrid": googleHybrid,
+        "شبه Google Earth": googleEarthLike,
+      },
+      {},
+      { position: "topleft", collapsed: true }
+    ).addTo(map);
+
+    function pinIcon(cls, text) {
+      return L.divIcon({
+        className: "",
+        html: `<div class="pin ${cls}">${text || ""}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      });
+    }
+
+    function clearLayer(key) {
+      if (layers[key]) {
+        map.removeLayer(layers[key]);
+        delete layers[key];
+      }
+    }
+
+    function clearAllOverlays() {
+      Object.keys(layers).forEach(clearLayer);
+    }
+
+    function addLog(msg) {
+      const t = new Date().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      logLines.push(`[${t}] ${msg}`);
+      if (logLines.length > 12) logLines.shift();
+    }
+
+    function setStatus(html) {
+      document.getElementById("mapStatus").innerHTML = html;
+    }
+
+    function setLegend(items) {
+      const el = document.getElementById("legend");
+      if (!items.length) { el.innerHTML = ""; return; }
+      el.innerHTML = items.map(i =>
+        `<div class="legend-item"><span class="swatch" style="background:${i.color};border:1px solid rgba(0,0,0,.15)"></span>${i.label}</div>`
+      ).join("");
+    }
+
+    // ── Soil calculation ──
+    function calcSoilScore(r) {
+      // مؤشر بسيط لصحة التربة (0–100)
+      let score = 70;
+      // رطوبة مثالية 25–40%
+      if (r.moisture >= 25 && r.moisture <= 40) score += 10;
+      else if (r.moisture < 15 || r.moisture > 55) score -= 15;
+      else score -= 5;
+      // pH مثالي 6.5–7.5 للنخيل
+      if (r.ph >= 6.5 && r.ph <= 7.5) score += 10;
+      else score -= 10;
+      // ملوحة EC — أقل من 2 جيد
+      if (r.ec < 2) score += 8;
+      else if (r.ec < 4) score -= 5;
+      else score -= 15;
+      // نيتروجين
+      if (r.nitrogen >= 30 && r.nitrogen <= 60) score += 5;
+      return Math.max(0, Math.min(100, Math.round(score)));
+    }
+
+    function soilVerdict(score) {
+      if (score >= 80) return { text: "تربة جيدة", cls: "ok" };
+      if (score >= 60) return { text: "مقبولة — متابعة", cls: "warn" };
+      return { text: "تحتاج تدخل", cls: "danger" };
+    }
+
+    // ── Step renderers ──
+    function renderDots() {
+      document.getElementById("stepDots").innerHTML = STEPS.map((s, i) => {
+        const cls = i < step ? "done" : i === step ? "active" : "";
+        return `<div class="step-dot ${cls}"><div class="bar"></div>${s.short}</div>`;
+      }).join("");
+    }
+
+    function showFarm() {
+      stopEditFarm(false);
+      clearAllOverlays();
+      const poly = L.polygon(FARM.boundary, {
+        color: EDGE,
+        weight: 4,
+        fillColor: EDGE,
+        fillOpacity: 0.28,
+      }).addTo(map);
+      layers.farm = poly;
+      const marker = L.marker(FARM.center, { icon: pinIcon("", "🌴") }).addTo(map)
+        .bindPopup(`<b dir="rtl">${FARM.name}</b><br/><span dir="ltr">${FARM.id}</span>`);
+      layers.farmPin = marker;
+      map.fitBounds(poly.getBounds(), { padding: [40, 40] });
+      setStatus(`تحديد المزرعة · <strong>${FARM.name}</strong>`);
+      setLegend([
+        { color: EDGE, label: "حواف المزرعة (تحديدك)" },
+      ]);
+    }
+
+    function readPolyBoundary(poly) {
+      const rings = poly.getLatLngs();
+      const ring = Array.isArray(rings[0]) ? rings[0] : rings;
+      return ring.map(ll => [Number(ll.lat.toFixed(6)), Number(ll.lng.toFixed(6))]);
+    }
+
+    function startEditFarm() {
+      if (step !== 0) return;
+      if (!layers.farm) showFarm();
+      editMode = true;
+      layers.farm.pm.enable({
+        allowSelfIntersection: false,
+        snappable: true,
+        snapDistance: 15,
+      });
+      setStatus(`تعديل الحواف · <strong>اسحبي الزوايا على الخريطة</strong>`);
+      const hint = document.getElementById("editHint");
+      const btnEdit = document.getElementById("btnEditFarm");
+      const btnSave = document.getElementById("btnSaveFarm");
+      const btnCancel = document.getElementById("btnCancelEdit");
+      if (hint) hint.classList.add("show");
+      if (btnEdit) btnEdit.style.display = "none";
+      if (btnSave) btnSave.style.display = "";
+      if (btnCancel) btnCancel.style.display = "";
+      document.getElementById("btnNext").disabled = true;
+      document.getElementById("btnBack").disabled = true;
+    }
+
+    function stopEditFarm(restoreUi) {
+      if (layers.farm && layers.farm.pm) {
+        try { layers.farm.pm.disable(); } catch (_) {}
+      }
+      editMode = false;
+      if (restoreUi) {
+        const hint = document.getElementById("editHint");
+        const btnEdit = document.getElementById("btnEditFarm");
+        const btnSave = document.getElementById("btnSaveFarm");
+        const btnCancel = document.getElementById("btnCancelEdit");
+        if (hint) hint.classList.remove("show");
+        if (btnEdit) btnEdit.style.display = "";
+        if (btnSave) btnSave.style.display = "none";
+        if (btnCancel) btnCancel.style.display = "none";
+        document.getElementById("btnNext").disabled = false;
+        document.getElementById("btnBack").disabled = step === 0;
+        updateButtons();
+      }
+    }
+
+    function downloadBoundaryFile() {
+      const data = {
+        farmId: FARM.id,
+        farmName: FARM.name,
+        center: FARM.center,
+        boundary: FARM.boundary,
+        savedAt: new Date().toISOString(),
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "boundary.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function saveFarmEdit() {
+      if (!layers.farm) return;
+      FARM.boundary = readPolyBoundary(layers.farm);
+      const b = L.latLngBounds(FARM.boundary);
+      const c = b.getCenter();
+      FARM.center = [Number(c.lat.toFixed(6)), Number(c.lng.toFixed(6))];
+      localStorage.setItem("field_test_farm_boundary", JSON.stringify(FARM.boundary));
+      localStorage.setItem("field_test_farm_center", JSON.stringify(FARM.center));
+      downloadBoundaryFile();
+      stopEditFarm(true);
+      showFarm();
+      renderStepBody();
+      setStatus(`تم الحفظ · <strong>الحواف محدّثة وقابلة للتعديل لاحقًا</strong>`);
+      addLog("BOUNDARY saved (" + FARM.boundary.length + " verts)");
+    }
+
+    function cancelFarmEdit() {
+      stopEditFarm(true);
+      showFarm();
+      renderStepBody();
+      setStatus(`تم الإلغاء · <strong>بدون تغيير</strong>`);
+    }
+
+    function resetFarmBoundary() {
+      if (!confirm("استعادة الحدود المحفوظة في الملف؟")) return;
+      stopEditFarm(true);
+      FARM.boundary = DEFAULT_BOUNDARY.map(p => [...p]);
+      FARM.center = [...DEFAULT_CENTER];
+      localStorage.setItem("field_test_farm_boundary", JSON.stringify(FARM.boundary));
+      localStorage.setItem("field_test_farm_center", JSON.stringify(FARM.center));
+      showFarm();
+      renderStepBody();
+      setStatus(`استُعيد المحفوظ · <strong>حدود الملف</strong>`);
+    }
+
+    function bindFarmEditButtons() {
+      const edit = document.getElementById("btnEditFarm");
+      const save = document.getElementById("btnSaveFarm");
+      const cancel = document.getElementById("btnCancelEdit");
+      const reset = document.getElementById("btnResetFarm");
+      if (edit) edit.onclick = startEditFarm;
+      if (save) save.onclick = saveFarmEdit;
+      if (cancel) cancel.onclick = cancelFarmEdit;
+      if (reset) reset.onclick = resetFarmBoundary;
+    }
+
+    async function runDroneScan() {
+      clearAllOverlays();
+      showFarm();
+      const banner = document.getElementById("scanBanner");
+      banner.classList.add("show");
+      document.getElementById("btnNext").disabled = true;
+
+      const path = FARM.boundary.concat([FARM.boundary[0]]);
+      const drone = L.marker(path[0], { icon: pinIcon("drone", "✈") }).addTo(map);
+      layers.drone = drone;
+
+      // خط مسار المسح
+      const scanLine = L.polyline([], {
+        color: GOLD,
+        weight: 2,
+        dashArray: "4 8",
+        opacity: 0.9,
+      }).addTo(map);
+      layers.scanLine = scanLine;
+
+      const pts = [];
+      // مسار متعرج داخل المزرعة (محاكاة مسح شريطي)
+      const bounds = L.latLngBounds(FARM.boundary);
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const rows = 6;
+      for (let i = 0; i < rows; i++) {
+        const lat = sw.lat + ((ne.lat - sw.lat) * (i + 0.5) / rows);
+        if (i % 2 === 0) {
+          pts.push([lat, sw.lng + 0.0003], [lat, ne.lng - 0.0003]);
+        } else {
+          pts.push([lat, ne.lng - 0.0003], [lat, sw.lng + 0.0003]);
+        }
+      }
+
+      const trail = [];
+      for (let i = 0; i < pts.length; i++) {
+        await wait(280);
+        drone.setLatLng(pts[i]);
+        trail.push(pts[i]);
+        scanLine.setLatLngs(trail);
+        const pct = Math.round(((i + 1) / pts.length) * 100);
+        document.getElementById("scanPct").textContent = pct + "%";
+        setStatus(`مسح الدرون جارٍ · <strong>${pct}%</strong>`);
+        addLog(`DRONE scan strip ${i + 1}/${pts.length}`);
+        renderStepBody(); // refresh log
+      }
+
+      // بعد المسح: حدود صلبة بدل متقطعة
+      clearLayer("farm");
+      layers.farm = L.polygon(FARM.boundary, {
+        color: EDGE,
+        weight: 4,
+        fillColor: EDGE,
+        fillOpacity: 0.18,
+      }).addTo(map);
+
+      banner.classList.remove("show");
+      scanDone = true;
+      document.getElementById("btnNext").disabled = false;
+      setStatus(`اكتمل المسح · <strong>تم ترسيم حدود المزرعة</strong>`);
+      addLog("SCAN complete — farm boundary locked");
+      setLegend([
+        { color: EDGE, label: "حواف بعد المسح" },
+        { color: "#C9A84C", label: "مسار الدرون" },
+      ]);
+      renderStepBody();
+    }
+
+    function wasteLabelIcon(w) {
+      return L.divIcon({
+        className: "",
+        html: `<div class="waste-label">${w.label}<small>توقع الكمية: ${w.tons} طن</small></div>`,
+        iconSize: [130, 36],
+        iconAnchor: [65, 42],
+      });
+    }
+
+    function showWaste() {
+      if (!layers.farm) showFarm();
+      clearLayer("wasteGroup");
+      const group = L.layerGroup().addTo(map);
+      let total = 0;
+      FARM.waste.forEach((w) => {
+        total += w.tons;
+        const rect = L.rectangle(w.bounds, {
+          color: "#B91C1C",
+          weight: 3,
+          fillColor: "#EF4444",
+          fillOpacity: 0.35,
+        }).bindPopup(
+          `<div dir="rtl" style="text-align:right;font-family:sans-serif">
+            <b>${w.label}</b><br/>
+            الموقع: ${w.id}<br/>
+            <span style="color:#B91C1C;font-weight:700">توقع الكمية: ${w.tons} طن</span>
+          </div>`
+        );
+        group.addLayer(rect);
+        const c = [
+          (w.bounds[0][0] + w.bounds[1][0]) / 2,
+          (w.bounds[0][1] + w.bounds[1][1]) / 2,
+        ];
+        // التسمية فوق المربع
+        const labelPos = [
+          Math.max(w.bounds[0][0], w.bounds[1][0]) + 0.00015,
+          (w.bounds[0][1] + w.bounds[1][1]) / 2,
+        ];
+        group.addLayer(L.marker(labelPos, { icon: wasteLabelIcon(w), interactive: false }));
+        group.addLayer(
+          L.marker(c, { icon: pinIcon("waste", "▣") }).bindPopup(
+            `<div dir="rtl"><b>${w.label}</b><br/>توقع الكمية: ${w.tons} طن</div>`
+          )
+        );
+        addLog(`WASTE ${w.id} plant-waste est=${w.tons}t @ ${c[0].toFixed(5)}, ${c[1].toFixed(5)}`);
+      });
+      layers.wasteGroup = group;
+      const bounds = L.latLngBounds(FARM.waste.flatMap(w => w.bounds));
+      if (layers.farm) bounds.extend(layers.farm.getBounds());
+      map.fitBounds(bounds, { padding: [50, 50] });
+      setStatus(`رصد المخلفات · <strong>${FARM.waste.length} مواقع · إجمالي متوقع ${total.toFixed(1)} طن</strong>`);
+      setLegend([
+        { color: "#EF4444", label: "مربع مخلفات نباتية" },
+        { color: EDGE, label: "حواف المزرعة" },
+      ]);
+    }
+
+    function pointOnCircle(center, radiusM, bearingDeg) {
+      const rad = (bearingDeg * Math.PI) / 180;
+      const dLat = (radiusM * Math.cos(rad)) / 110860;
+      const dLng = (radiusM * Math.sin(rad)) / (98400 * Math.cos((center[0] * Math.PI) / 180));
+      return [center[0] + dLat, center[1] + dLng];
+    }
+
+    function humIcon(h) {
+      return L.divIcon({
+        className: "",
+        html: `<div class="hum-label">رطوبة ${h.value}<small>${h.level}</small></div>`,
+        iconSize: [88, 34],
+        iconAnchor: [44, 17],
+      });
+    }
+
+    function drawInfectionTarget(group) {
+      const t = FARM.infection.target;
+      const R = FARM.infection.radiusM || 98;
+      const circle = L.circle(t, {
+        radius: R,
+        color: INFECT,
+        weight: 3,
+        fillColor: INFECT,
+        fillOpacity: 0.22,
+        dashArray: "6 8",
+      }).bindPopup(
+        `<div dir="rtl" style="text-align:right;font-family:sans-serif;max-width:240px">
+          <b style="color:${INFECT}">${FARM.infection.label}</b><br/>
+          دائرة رصد برتقالية — نصف القطر ${R} م<br/>
+          <span dir="ltr">${t[0].toFixed(6)}, ${t[1].toFixed(6)}</span><br/><br/>
+          <b>الفحص:</b> رطوبة عالية حول المحيط<br/>
+          <b>التشخيص:</b> ${FARM.infection.diagnosis.cause}<br/>
+          <b style="color:#9A3412">${FARM.infection.diagnosis.fieldFinding}</b>
+        </div>`
+      );
+      group.addLayer(circle);
+      group.addLayer(
+        L.marker(t, {
+          icon: L.divIcon({
+            className: "",
+            html: `<div class="pin" style="background:${INFECT};width:34px;height:34px;font-size:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800">!</div>`,
+            iconSize: [34, 34],
+            iconAnchor: [17, 17],
+          }),
+        }).bindPopup(
+          `<div dir="rtl"><b style="color:${INFECT}">${FARM.infection.label}</b><br/>${FARM.infection.diagnosis.fieldFinding}</div>`
+        )
+      );
+
+      // قراءات رطوبة على محيط الدائرة
+      (FARM.infection.humidityPoints || []).forEach((h) => {
+        const pos = pointOnCircle(t, R * 0.92, h.bearing);
+        group.addLayer(
+          L.circleMarker(pos, {
+            radius: 7,
+            color: "#fff",
+            weight: 2,
+            fillColor: INFECT,
+            fillOpacity: 1,
+          }).bindPopup(
+            `<div dir="rtl">نقطة فحص ${h.id}<br/><b>رطوبة ${h.value}</b> — ${h.level}<br/>رطوبة عالية حول المحيط ترفع احتمال الإصابة الفطرية</div>`
+          )
+        );
+        group.addLayer(L.marker(pos, { icon: humIcon(h), interactive: false }));
+      });
+
+      return circle;
+    }
+
+    async function showInfectionPath() {
+      if (!layers.farm) showFarm();
+      clearLayer("infectGroup");
+      const group = L.layerGroup().addTo(map);
+      layers.infectGroup = group;
+
+      document.getElementById("btnNext").disabled = true;
+
+      const circle = drawInfectionTarget(group);
+      map.fitBounds(circle.getBounds().pad(0.55));
+      setStatus(`اشتباه إصابة · <strong>رطوبة عالية حول المحيط — احتمال تعفن أسود</strong>`);
+      addLog(`ALERT infection @ ${FARM.infection.target[0]}, ${FARM.infection.target[1]} r=${FARM.infection.radiusM}m`);
+      (FARM.infection.humidityPoints || []).forEach((h) => addLog(`HUM ${h.id}=${h.value} (${h.level})`));
+      addLog(`FINDING: ${FARM.infection.diagnosis.fieldFinding}`);
+      renderStepBody();
+      await wait(700);
+
+      const path = FARM.infection.path || [];
+      if (path.length > 0) {
+        const linePts = [];
+        const line = L.polyline([], {
+          color: INFECT,
+          weight: 3,
+          dashArray: "6 8",
+        }).addTo(group);
+
+        for (let i = 0; i < path.length; i++) {
+          await wait(450);
+          linePts.push(path[i]);
+          line.setLatLngs(linePts);
+          const m = L.marker(path[i], {
+            icon: pinIcon("seq", String(i + 1)),
+          }).bindPopup(`<span dir="rtl">نقطة مسار ${i + 1} — توجيه الفريق</span>`);
+          group.addLayer(m);
+          setStatus(`مسار الفريق · <strong>نقطة ${i + 1} / ${path.length}</strong>`);
+          addLog(`NAV point ${i + 1}`);
+          renderStepBody();
+        }
+        setStatus(`اشتباه إصابة · <strong>تعفن أسود مرصود — الفريق في الموقع</strong>`);
+      }
+
+      document.getElementById("btnNext").disabled = false;
+      setLegend([
+        { color: INFECT, label: "دائرة اشتباه إصابة + رطوبة" },
+        ...(path.length ? [{ color: WARN, label: "نقاط مسار متسلسلة" }] : []),
+      ]);
+    }
+
+    function showSoil() {
+      if (!layers.farm) showFarm();
+      clearLayer("soilPin");
+      // إبقاء سياق الإصابة ظاهرًا مع التربة
+      clearLayer("infectGroup");
+      const ig = L.layerGroup().addTo(map);
+      drawInfectionTarget(ig);
+      layers.infectGroup = ig;
+
+      const s = FARM.soilSensor;
+      layers.soilPin = L.marker(s.position, { icon: pinIcon("soil", "⌀") })
+        .addTo(map)
+        .bindPopup(
+          `<div dir="rtl"><b>حساس التربة</b><br/>رطوبة ${s.readings.moisture}% · pH ${s.readings.ph}<br/>${s.linkNote || ""}</div>`
+        )
+        .openPopup();
+      const b = L.latLngBounds([s.position, FARM.infection.target]);
+      map.fitBounds(b.pad(0.8));
+      const score = calcSoilScore(s.readings);
+      addLog(`SOIL moisture=${s.readings.moisture}% (HIGH) linked to infection zone`);
+      setStatus(`حساس التربة · <strong>رطوبة مرتفعة تدعم التعفن — مؤشر ${score}/100</strong>`);
+      setLegend([
+        { color: SOIL, label: "حساس التربة" },
+        { color: INFECT, label: "منطقة الإصابة" },
+      ]);
+    }
+
+    function drawSpreadForecast(group) {
+      const t = FARM.infection.target;
+      const u = FARM.report.untreated;
+      const rings = [
+        { r: u.nowRadiusM, color: INFECT, label: "الآن", opacity: 0.22 },
+        { r: u.week2RadiusM, color: "#EA580C", label: "بعد أسبوعين بدون علاج", opacity: 0.12 },
+        { r: u.month1RadiusM, color: "#991B1B", label: "بعد شهر بدون علاج", opacity: 0.08 },
+      ];
+      rings.forEach((ring) => {
+        group.addLayer(
+          L.circle(t, {
+            radius: ring.r,
+            color: ring.color,
+            weight: 2,
+            fillColor: ring.color,
+            fillOpacity: ring.opacity,
+            dashArray: ring.r === u.nowRadiusM ? "6 8" : "2 6",
+          }).bindPopup(`<div dir="rtl"><b>${ring.label}</b><br/>نصف القطر ≈ ${ring.r} م</div>`)
+        );
+      });
+      return L.circle(t, { radius: u.month1RadiusM });
+    }
+
+    function farmAreaHa() {
+      try {
+        // تقدير بسيط من حدود المزرعة
+        const b = L.latLngBounds(FARM.boundary);
+        const sw = b.getSouthWest();
+        const ne = b.getNorthEast();
+        const mLat = (ne.lat - sw.lat) * 110860;
+        const mLng = (ne.lng - sw.lng) * 98400 * Math.cos((FARM.center[0] * Math.PI) / 180);
+        return Math.max(0.1, (mLat * mLng) / 10000);
+      } catch (_) {
+        return 12;
+      }
+    }
+
+    function saveSharedData() {
+      const r = FARM.soilSensor.readings;
+      const score = calcSoilScore(r);
+      const areaHa = Number(farmAreaHa().toFixed(1));
+      const payload = {
+        source: "field-test-scan",
+        farmId: FARM.id,
+        farmName: FARM.name,
+        completedAt: new Date().toISOString(),
+        wasteCount: FARM.waste.length,
+        wasteTons: FARM.waste.reduce((a, w) => a + w.tons, 0),
+        wasteSites: FARM.waste.map(w => ({ id: w.id, label: w.label, tons: w.tons, bounds: w.bounds })),
+        infection: FARM.infection.label,
+        infectionTarget: FARM.infection.target,
+        infectionRadiusM: FARM.infection.radiusM,
+        humidity: FARM.infection.humidityPoints,
+        diagnosis: FARM.infection.diagnosis,
+        soil: { ...r, score, verdict: soilVerdict(score).text, linkNote: FARM.soilSensor.linkNote },
+        report: FARM.report,
+        farmAreaHa: areaHa,
+        nextStep: "service-with-treated-compost",
+      };
+      localStorage.setItem("field_test_scan_result", JSON.stringify(payload));
+      return payload;
+    }
+
+    function renderStepBody() {
+      const body = document.getElementById("stepContent");
+      const s = STEPS[step];
+      const r = FARM.soilSensor.readings;
+      const score = calcSoilScore(r);
+      const verd = soilVerdict(score);
+
+      if (s.id === "farm") {
+        body.innerHTML = `
+          <h2>${s.title}</h2>
+          <p class="desc">تقدرين تعدّلين حواف المزرعة بنفسك: اسحبي الزوايا على الخريطة ثم احفظي.</p>
+          <div class="card">
+            <h3>بيانات المزرعة</h3>
+            <div class="metric"><span>الاسم</span><strong>${FARM.name}</strong></div>
+            <div class="metric"><span>المعرّف</span><strong dir="ltr">${FARM.id}</strong></div>
+            <div class="metric"><span>عدد الزوايا</span><strong>${FARM.boundary.length}</strong></div>
+            <div class="metric"><span>المركز</span><strong dir="ltr">${FARM.center[0].toFixed(4)}, ${FARM.center[1].toFixed(4)}</strong></div>
+          </div>
+          <div class="edit-row">
+            <button type="button" class="btn-edit" id="btnEditFarm">تعديل الحواف</button>
+            <button type="button" class="btn-save" id="btnSaveFarm" style="display:none">حفظ</button>
+            <button type="button" class="btn-ghost" id="btnCancelEdit" style="display:none">إلغاء</button>
+            <button type="button" class="btn-ghost" id="btnResetFarm">استعادة الأصل</button>
+          </div>
+          <div class="hint-edit" id="editHint">
+            اسحبي النقاط الخضراء على الخريطة لتعديل الشكل.
+            بعد «حفظ» تبقى الحدود على جهازك، ويُنزَّل ملف boundary.json كنسخة احتياطية قابلة للتعديل لاحقًا.
+          </div>
+        `;
+        bindFarmEditButtons();
+      } else if (s.id === "scan") {
+        body.innerHTML = `
+          <h2>${s.title}</h2>
+          <p class="desc">الدرون يمسح المزرعة شريطًا شريطًا ويرسّم الحدود جغرافيًا كأنها ناتج مسح حقيقي.</p>
+          <div class="card">
+            <h3>سجل المسح</h3>
+            <div class="log" id="liveLog">${logLines.map(l => `<div class="line">${l}</div>`).join("") || "في انتظار بدء المسح…"}</div>
+          </div>
+          ${scanDone ? `<span class="badge ok">اكتمل المسح ✓</span>` : `<span class="badge info">اضغط «تشغيل المسح»</span>`}
+        `;
+      } else if (s.id === "waste") {
+        const total = FARM.waste.reduce((a, w) => a + w.tons, 0);
+        body.innerHTML = `
+          <h2>${s.title}</h2>
+          <p class="desc">المربعات الحمراء = مواقع مخلفات نباتية داخل المزرعة، مع توقع كمية لكل موقع.</p>
+          <div class="card">
+            <h3>المواقع المرصودة</h3>
+            ${FARM.waste.map(w => `
+              <div class="metric">
+                <span>${w.id} — ${w.label}</span>
+                <span class="badge danger">${w.tons} طن</span>
+              </div>
+            `).join("")}
+            <div class="metric"><span>إجمالي متوقع</span><strong>${total.toFixed(1)} طن</strong></div>
+          </div>
+        `;
+      } else if (s.id === "infect") {
+        const d = FARM.infection.diagnosis;
+        body.innerHTML = `
+          <h2>${s.title}</h2>
+          <p class="desc">دائرة برتقالية 98م مع قراءات رطوبة عالية على المحيط، ومسار الفريق إلى موقع الإصابة.</p>
+          <div class="card">
+            <h3>هدف التوجيه</h3>
+            <div class="metric"><span>الحالة</span><span class="badge warn">${d.risk}</span></div>
+            <div class="metric"><span>الهدف</span><strong>${FARM.infection.label}</strong></div>
+            <div class="metric"><span>الإحداثيات</span><strong dir="ltr">${FARM.infection.target[0].toFixed(6)}, ${FARM.infection.target[1].toFixed(6)}</strong></div>
+            <div class="metric"><span>نصف قطر الدائرة</span><strong>${FARM.infection.radiusM} م</strong></div>
+          </div>
+          <div class="card">
+            <h3>فحص الرطوبة حول المحيط</h3>
+            ${(FARM.infection.humidityPoints || []).map(h => `
+              <div class="metric">
+                <span>${h.id} — رطوبة ${h.value}</span>
+                <span class="badge warn">${h.level}</span>
+              </div>
+            `).join("")}
+          </div>
+          <div class="diag-box">
+            <strong>التشخيص:</strong> ${d.cause}<br/>
+            <strong>رصد ميداني:</strong> ${d.fieldFinding}
+          </div>
+          <div class="log" style="margin-top:0.65rem">${logLines.slice(-6).map(l => `<div class="line">${l}</div>`).join("") || "بانتظار العرض…"}</div>
+        `;
+      } else if (s.id === "soil") {
+        body.innerHTML = `
+          <h2>${s.title}</h2>
+          <p class="desc">فحص التربة مرتبط بمنطقة الإصابة: الرطوبة المرتفعة تؤكد بيئة مناسبة للتعفن الأسود.</p>
+          <div class="card">
+            <h3>القراءات الحية</h3>
+            <div class="metric"><span>الرطوبة</span><strong>${r.moisture} % <span class="badge warn">مرتفعة</span></strong></div>
+            <div class="metric"><span>الحموضة pH</span><strong>${r.ph}</strong></div>
+            <div class="metric"><span>الملوحة EC</span><strong>${r.ec} dS/m</strong></div>
+            <div class="metric"><span>النيتروجين</span><strong>${r.nitrogen} ppm</strong></div>
+            <div class="metric"><span>حرارة التربة</span><strong>${r.temp} °C</strong></div>
+          </div>
+          <div class="card">
+            <h3>الحساب والربط بالإصابة</h3>
+            <div class="metric"><span>مؤشر صحة التربة</span><strong>${score} / 100</strong></div>
+            <div class="metric"><span>التقييم</span><span class="badge ${verd.cls}">${verd.text}</span></div>
+          </div>
+          <div class="diag-box">${FARM.soilSensor.linkNote}</div>
+        `;
+      } else if (s.id === "report") {
+        const data = saveSharedData();
+        const u = FARM.report.untreated;
+        const tr = FARM.report.treated;
+        const kpis = buildKpiPack(data);
+        body.innerHTML = `
+          <div class="done-box">
+            <div class="check">✓</div>
+            <h2>تقرير KPIs</h2>
+            <p class="desc">مؤشرات أداء المسح مع تنبؤ الانتشار وخيار المعالجة — قابلة للتحميل.</p>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi gold"><div class="kpi-val">${kpis.wasteTons.toFixed(1)} طن</div><div class="kpi-label">مخلفات نباتية متوقعة</div></div>
+            <div class="kpi"><div class="kpi-val">${kpis.wasteSites}</div><div class="kpi-label">مواقع رصد</div></div>
+            <div class="kpi warn"><div class="kpi-val">${kpis.humidityMax}/10</div><div class="kpi-label">أعلى رطوبة محيط</div></div>
+            <div class="kpi warn"><div class="kpi-val">${kpis.soilMoisture}%</div><div class="kpi-label">رطوبة التربة</div></div>
+            <div class="kpi ${kpis.soilScore >= 70 ? "ok" : "danger"}"><div class="kpi-val">${kpis.soilScore}/100</div><div class="kpi-label">صحة التربة</div></div>
+            <div class="kpi danger"><div class="kpi-val">${kpis.infectRadiusM} م</div><div class="kpi-label">دائرة الإصابة الآن</div></div>
+            <div class="kpi"><div class="kpi-val">${kpis.areaNowHa}</div><div class="kpi-label">هكتار مصاب الآن</div></div>
+            <div class="kpi danger"><div class="kpi-val">+${kpis.spreadGrowthPct}%</div><div class="kpi-label">نمو متوقع خلال شهر</div></div>
+          </div>
+          <div class="scenario-bad">
+            <strong>⚠ تنبؤ: بدون معالجة</strong>
+            ${u.riskText}<br/>
+            الآن ≈ ${u.nowRadiusM} م → أسبوعين ≈ ${u.week2RadiusM} م → شهر ≈ ${u.month1RadiusM} م<br/>
+            ${u.spreadNote}
+          </div>
+          <div class="scenario-good">
+            <strong>✓ مع خدمتنا</strong>
+            ${tr.service}<br/>
+            ${tr.benefit}
+          </div>
+          <div class="export-row">
+            <button type="button" class="btn-download" id="btnDlHtml">تحميل تقرير HTML</button>
+            <button type="button" class="btn-json" id="btnDlJson">تحميل JSON</button>
+            <button type="button" class="btn-ghost" id="btnPrintReport">تصدير PDF</button>
+          </div>
+        `;
+        bindReportExport(data, kpis);
+        setStatus(`تقرير KPIs · <strong>جاهز للتحميل والتصدير</strong>`);
+        setLegend([
+          { color: INFECT, label: "الإصابة الآن" },
+          { color: "#EA580C", label: "انتشار متوقع أسبوعين" },
+          { color: "#991B1B", label: "انتشار متوقع شهر" },
+          { color: EDGE, label: "سماد + معالج (خدمة)" },
+        ]);
+        clearAllOverlays();
+        showFarm();
+        showWaste();
+        const g = L.layerGroup().addTo(map);
+        const outer = drawSpreadForecast(g);
+        drawInfectionTarget(g);
+        if ((FARM.infection.path || []).length) {
+          g.addLayer(L.polyline(FARM.infection.path, { color: INFECT, weight: 2, dashArray: "6 6" }));
+        }
+        layers.infectGroup = g;
+        layers.soilPin = L.marker(FARM.soilSensor.position, { icon: pinIcon("soil", "⌀") }).addTo(map);
+        map.fitBounds(outer.getBounds().pad(0.25));
+      }
+    }
+
+    function wait(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
+
+    function buildKpiPack(data) {
+      const u = FARM.report.untreated;
+      const areaNow = (Math.PI * u.nowRadiusM ** 2) / 10000;
+      const area1m = (Math.PI * u.month1RadiusM ** 2) / 10000;
+      const growthPct = Math.round(((area1m - areaNow) / areaNow) * 100);
+      return {
+        wasteTons: data.wasteTons,
+        wasteSites: data.wasteCount,
+        humidityMax: Math.max(...(FARM.infection.humidityPoints || []).map(h => h.value), 0),
+        soilMoisture: data.soil.moisture,
+        soilScore: data.soil.score,
+        infectRadiusM: FARM.infection.radiusM,
+        areaNowHa: Number(areaNow.toFixed(2)),
+        areaMonthHa: Number(area1m.toFixed(2)),
+        spreadGrowthPct: growthPct,
+        farmAreaHa: data.farmAreaHa,
+      };
+    }
+
+    function downloadBlob(filename, content, mime) {
+      const blob = new Blob([content], { type: mime });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function downloadReportJson(data, kpis) {
+      downloadBlob(
+        `field-report-${FARM.id}.json`,
+        JSON.stringify({ report: data, kpis, generatedAt: new Date().toISOString() }, null, 2),
+        "application/json"
+      );
+    }
+
+    function downloadReportHtml(data, kpis) {
+      const u = FARM.report.untreated;
+      const tr = FARM.report.treated;
+      const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<title>تقرير KPIs — ${FARM.name}</title>
+<style>
+  body{font-family:Tahoma,Arial,sans-serif;background:#F4F6F3;color:#0F2E1F;margin:0;padding:24px}
+  h1{margin:0 0 8px} .sub{color:#6B7C6B;font-size:14px;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0 24px}
+  .kpi{background:#fff;border:1px solid #D8E0D6;border-radius:12px;padding:14px;text-align:center}
+  .kpi b{display:block;font-size:22px;margin-bottom:4px}
+  .kpi span{font-size:12px;color:#6B7C6B}
+  .box{background:#fff;border:1px solid #D8E0D6;border-radius:12px;padding:14px;margin-bottom:12px;line-height:1.8;font-size:14px}
+  .bad{background:#FEF2F2;border-color:#FECACA;color:#991B1B}
+  .good{background:#ECFDF5;border-color:#A7F3D0;color:#065F46}
+  @media print{.no-print{display:none}}
+</style>
+</head>
+<body>
+  <h1>تقرير المسح الميداني — مؤشرات الأداء (KPIs)</h1>
+  <div class="sub">${FARM.name} · ${FARM.id} · ${new Date().toLocaleString("ar-SA")}</div>
+  <div class="grid">
+    <div class="kpi"><b>${kpis.wasteTons.toFixed(1)} طن</b><span>مخلفات نباتية متوقعة</span></div>
+    <div class="kpi"><b>${kpis.wasteSites}</b><span>مواقع رصد مخلفات</span></div>
+    <div class="kpi"><b>${kpis.humidityMax}/10</b><span>أعلى رطوبة محيط الإصابة</span></div>
+    <div class="kpi"><b>${kpis.soilMoisture}%</b><span>رطوبة التربة</span></div>
+    <div class="kpi"><b>${kpis.soilScore}/100</b><span>مؤشر صحة التربة</span></div>
+    <div class="kpi"><b>${kpis.infectRadiusM} م</b><span>نصف قطر الإصابة الحالي</span></div>
+    <div class="kpi"><b>${kpis.areaNowHa} هكتار</b><span>مساحة الإصابة الآن</span></div>
+    <div class="kpi"><b>${kpis.areaMonthHa} هكتار</b><span>مساحة متوقعة بعد شهر (بدون علاج)</span></div>
+    <div class="kpi"><b>+${kpis.spreadGrowthPct}%</b><span>نمو مساحة العدوى المتوقع</span></div>
+  </div>
+  <div class="box bad">
+    <b>تنبؤ بدون معالجة</b><br/>
+    ${u.riskText}<br/>
+    الآن ≈ ${u.nowRadiusM}م → بعد أسبوعين ≈ ${u.week2RadiusM}م → بعد شهر ≈ ${u.month1RadiusM}م<br/>
+    ${u.spreadNote}
+  </div>
+  <div class="box good">
+    <b>في حال أخذ الخدمة</b><br/>
+    ${tr.service}<br/>
+    ${tr.benefit}
+  </div>
+  <div class="box">
+    <b>التشخيص الميداني</b><br/>
+    ${FARM.infection.diagnosis.cause}<br/>
+    ${FARM.infection.diagnosis.fieldFinding}
+  </div>
+  <p class="no-print" style="color:#6B7C6B;font-size:12px">للطباعة أو حفظ PDF: Ctrl+P ثم «حفظ كـ PDF»</p>
+</body>
+</html>`;
+      downloadBlob(`field-report-KPI-${FARM.id}.html`, html, "text/html;charset=utf-8");
+    }
+
+    function bindReportExport(data, kpis) {
+      const btnHtml = document.getElementById("btnDlHtml");
+      const btnJson = document.getElementById("btnDlJson");
+      const btnPrint = document.getElementById("btnPrintReport");
+      if (btnHtml) btnHtml.onclick = () => downloadReportHtml(data, kpis);
+      if (btnJson) btnJson.onclick = () => downloadReportJson(data, kpis);
+      if (btnPrint) btnPrint.onclick = () => {
+        downloadReportHtml(data, kpis);
+        setTimeout(() => alert("تم تنزيل ملف التقرير. افتحيه ثم اضغطي Ctrl+P لحفظه PDF."), 300);
+      };
+    }
+
+    function updateButtons() {
+      const btnBack = document.getElementById("btnBack");
+      const btnNext = document.getElementById("btnNext");
+      btnBack.disabled = step === 0;
+      const labels = [
+        "تشغيل مسح الدرون",
+        scanDone ? "التالي: رصد المخلفات" : "تشغيل المسح",
+        "التالي: مسار الإصابة",
+        "التالي: حساس التربة",
+        "التالي: التقرير والتنبؤ",
+        "إعادة الاختبار",
+      ];
+      btnNext.textContent = labels[step];
+    }
+
+    async function goNext() {
+      if (editMode) {
+        alert("احفظي أو ألغي تعديل الحواف أولًا");
+        return;
+      }
+      const id = STEPS[step].id;
+
+      if (id === "farm") {
+        step = 1;
+        renderDots();
+        renderStepBody();
+        updateButtons();
+        await runDroneScan();
+        updateButtons();
+        return;
+      }
+      if (id === "scan") {
+        if (!scanDone) {
+          await runDroneScan();
+          updateButtons();
+          return;
+        }
+        step = 2;
+        showWaste();
+      } else if (id === "waste") {
+        step = 3;
+        renderDots();
+        renderStepBody();
+        updateButtons();
+        await showInfectionPath();
+        updateButtons();
+        return;
+      } else if (id === "infect") {
+        step = 4;
+        showSoil();
+      } else if (id === "soil") {
+        step = 5;
+      } else {
+        // إعادة
+        step = 0;
+        scanDone = false;
+        logLines = [];
+        clearAllOverlays();
+        showFarm();
+      }
+
+      renderDots();
+      renderStepBody();
+      updateButtons();
+    }
+
+    function goBack() {
+      if (step === 0) return;
+      step -= 1;
+      clearAllOverlays();
+      if (step === 0) showFarm();
+      else if (step === 1) { showFarm(); setStatus(`مسح الدرون · <strong>${scanDone ? "مكتمل" : "جاهز"}</strong>`); }
+      else if (step === 2) showWaste();
+      else if (step === 3) {
+        showFarm();
+        const g = L.layerGroup().addTo(map);
+        drawInfectionTarget(g);
+        if ((FARM.infection.path || []).length) {
+          L.polyline(FARM.infection.path, { color: INFECT, weight: 3, dashArray: "6 8" }).addTo(g);
+          FARM.infection.path.forEach((p, i) => {
+            g.addLayer(L.marker(p, { icon: pinIcon("seq", String(i + 1)) }));
+          });
+        }
+        layers.infectGroup = g;
+      } else if (step === 4) showSoil();
+      renderDots();
+      renderStepBody();
+      updateButtons();
+    }
+
+    document.getElementById("btnNext").addEventListener("click", () => goNext());
+    document.getElementById("btnBack").addEventListener("click", goBack);
+
+    // init
+    map.pm.setLang("ar");
+    map.pm.addControls({
+      position: "topleft",
+      drawMarker: false,
+      drawCircleMarker: false,
+      drawPolyline: false,
+      drawRectangle: false,
+      drawPolygon: false,
+      drawCircle: false,
+      drawText: false,
+      cutPolygon: false,
+      rotateMode: false,
+      removalMode: false,
+      editMode: false,
+      dragMode: false,
+    });
+    // إخفاء شريط أدوات Geoman — نستخدم أزرارنا فقط
+    const pmBar = document.querySelector(".leaflet-pm-toolbar");
+    if (pmBar) pmBar.style.display = "none";
+
+    showFarm();
+    renderDots();
+    renderStepBody();
+    updateButtons();
+  </script>
+</body>
+</html>

@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import { HailMap, type RegionId } from "@/app/components/HailMap";
+import { FieldScanPage } from "@/app/components/FieldScanPage";
+import { LocationPicker, type PickedLocation } from "@/app/components/LocationPicker";
 import platformLogo from "@/imports/logo.png";
 import osheibaAvatar from "@/imports/osheiba.png";
 import storyBg from "@/imports/hero-bg.png";
@@ -27,7 +29,7 @@ const REGION_CITIES: Record<RegionId, { l: string; icon: string; c: string }[]> 
     { l: "الشنان", icon: "🏡", c: G },
     { l: "موقق", icon: "🌄", c: G },
     { l: "السليمي", icon: "🏜️", c: G },
-    { l: "الغزالة", icon: "🌾", c: G },
+    { l: "الخطة", icon: "🌾", c: G },
   ],
   qassim: [
     { l: "بريدة", icon: "🌴", c: QASSIM },
@@ -46,7 +48,7 @@ const ALL_CITIES = [
 // بانر رسمي — معيار 1920×560 بكسل (نسبة 24:7) لبوابات الجهات
 const HERO_BANNER = "h-[380px] sm:h-[480px] lg:h-[560px]";
 
-type Page = "home" | "login" | "dashboard" | "service" | "workshops";
+type Page = "home" | "login" | "dashboard" | "service" | "workshops" | "farm-test";
 type Message = { id: number; from: "user" | "bot"; text: string; imageUrl?: string };
 
 const WORKSHOPS = [
@@ -105,7 +107,7 @@ const RECYCLE_CATEGORIES = [
     id: "plastic",
     label: "البلاستيك",
     emoji: "♻️",
-    keywords: ["بلاستيك", "بلاستيكية", "عبوة", "نايلون", "أكياس"],
+    keywords: ["قارورة ماء", "زجاجة ماء", "عبوة ماء", "بلاستيك", "بلاستيكية", "عبوة", "نايلون", "أكياس", "قنينة", "bottle", "water"],
     badKeywords: ["ملوث", "زيت", "طعام", "مكسور", "حرق", "أسود"],
     recyclableTips: [
       "غسل العبوات وإزالة الأغطية قبل الفرز",
@@ -196,6 +198,25 @@ const RECYCLE_CATEGORIES = [
     ],
     workshopId: 3,
   },
+  {
+    id: "animal",
+    label: "مخلفات حيوانية ومواشي",
+    emoji: "🐄",
+    keywords: ["مخلفات حيوانية", "مخلفات المواشي", "مواشي", "حيوانية", "روث", "سماد حيواني", "أبقار", "أغنام", "إبل", "دواجن"],
+    badKeywords: ["مريض", "أدوية", "مضاد حيوي", "نفوق", "بلاستيك", "ملوث"],
+    recyclableTips: [
+      "تحويل الروث إلى سماد عضوي بعد التخمر الجيد (كومبوست)",
+      "خلطه مع سعف النخيل لضبط نسبة الكربون إلى النيتروجين",
+      "استخدامه لتحسين خصوبة التربة الزراعية بعد المعالجة",
+    ],
+    badReason: "المخلفات المختلطة بأدوية أو من حيوانات نافقة/مريضة غير آمنة للتسميد المباشر.",
+    safeDisposal: [
+      "اطلب خدمة الإزالة عبر منصة عَود للمعالجة الآمنة",
+      "لا تضع الروث الطازج مباشرة على المحاصيل — يحتاج تخمراً",
+      "افصل المخلفات عن البلاستيك وبقايا الأعلاف المغلفة",
+    ],
+    workshopId: 2,
+  },
 ] as const;
 
 function workshopLine(id: number) {
@@ -206,13 +227,17 @@ function workshopLine(id: number) {
 
 function matchCategory(text: string) {
   const t = text.trim();
-  const sorted = [...RECYCLE_CATEGORIES].sort(
-    (a, b) => Math.max(...b.keywords.map((k) => k.length)) - Math.max(...a.keywords.map((k) => k.length)),
-  );
-  for (const cat of sorted) {
-    if (cat.keywords.some((k) => t.includes(k))) return cat;
+  let best: (typeof RECYCLE_CATEGORIES)[number] | null = null;
+  let bestLen = 0;
+  for (const cat of RECYCLE_CATEGORIES) {
+    for (const k of cat.keywords) {
+      if (t.includes(k) && k.length > bestLen) {
+        best = cat;
+        bestLen = k.length;
+      }
+    }
   }
-  return null;
+  return best;
 }
 
 function isNonRecyclable(text: string, cat: (typeof RECYCLE_CATEGORIES)[number]) {
@@ -225,7 +250,7 @@ function botReply(t: string) {
     return (
       "اختر فئة المادة أو صِف ما لديك:\n" +
       "🫙 زجاج · 📄 ورق · ♻️ بلاستيك · 🔩 حديد\n" +
-      "🌴 سعف نخيل · 🌿 مخلفات نخيل · 🌳 أغصان\n\n" +
+      "🌴 سعف نخيل · 🌿 مخلفات نخيل · 🌳 أغصان · 🐄 حيوانية ومواشي\n\n" +
       "سأخبرك إن كانت صالحة لإعادة التدوير، وأقترح ورشة مناسبة، أو أرشدك للتخلص الآمن."
     );
   }
@@ -256,6 +281,8 @@ const CHAT_CATEGORY_CHIPS = [
   "سعف النخيل",
   "جريد نخيل",
   "أغصان أشجار",
+  "مخلفات حيوانية",
+  "مواشي",
 ] as const;
 
 type ImageAnalysis = { query: string; label: string; confidence: number };
@@ -287,56 +314,77 @@ async function analyzeImageFile(file: File): Promise<ImageAnalysis> {
   try {
     const img = await loadImageFromFile(url);
     const canvas = document.createElement("canvas");
-    const size = 56;
+    const size = 96;
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return { query: "سعف النخيل", label: "سعف النخيل", confidence: 55 };
+    if (!ctx) return { query: "بلاستيك", label: "البلاستيك", confidence: 55 };
 
     ctx.drawImage(img, 0, 0, size, size);
     const { data } = ctx.getImageData(0, 0, size, size);
 
-    let n = 0;
+    let wSum = 0;
     let green = 0;
     let brown = 0;
     let gray = 0;
     let bright = 0;
     let colorful = 0;
+    let cyan = 0;
+    let purple = 0;
+    let yellow = 0;
 
-    for (let i = 0; i < data.length; i += 4) {
-      const pr = data[i];
-      const pg = data[i + 1];
-      const pb = data[i + 2];
-      const a = data[i + 3];
-      if (a < 100) continue;
-      n++;
-      const max = Math.max(pr, pg, pb);
-      const min = Math.min(pr, pg, pb);
-      const sat = max - min;
-      const lum = (pr + pg + pb) / 3;
-      if (pg > pr + 15 && pg > pb + 10 && sat > 18) green++;
-      if (pr > 70 && pg > 50 && pb < 80 && pr >= pb) brown++;
-      if (sat < 22 && lum > 35 && lum < 210) gray++;
-      if (lum > 195 && sat < 35) bright++;
-      if (sat > 55 && lum > 40) colorful++;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const i = (y * size + x) * 4;
+        const pr = data[i];
+        const pg = data[i + 1];
+        const pb = data[i + 2];
+        const a = data[i + 3];
+        if (a < 100) continue;
+
+        const nx = (x + 0.5) / size - 0.5;
+        const ny = (y + 0.5) / size - 0.5;
+        const dist = Math.sqrt(nx * nx + ny * ny);
+        const w = dist < 0.28 ? 3.2 : dist < 0.42 ? 1.6 : 0.2;
+        wSum += w;
+
+        const max = Math.max(pr, pg, pb);
+        const min = Math.min(pr, pg, pb);
+        const sat = max - min;
+        const lum = (pr + pg + pb) / 3;
+
+        if (pg > pr + 15 && pg > pb + 10 && sat > 18) green += w;
+        if (pr > 70 && pg > 50 && pb < 80 && pr >= pb && sat > 20) brown += w;
+        if (pr > 120 && pg > 90 && pb < 90 && pr > pb + 40) yellow += w;
+        if (pb >= pg && pb > pr + 8 && lum > 70 && lum < 220) cyan += w;
+        if (pr > 60 && pb > 70 && pg < Math.min(pr, pb) - 8 && sat > 25) purple += w;
+        if (sat < 22 && lum > 35 && lum < 210 && !(pb > pr + 8)) gray += w;
+        if (lum > 195 && sat < 35) bright += w;
+        if (sat > 55 && lum > 40) colorful += w;
+      }
     }
 
-    if (!n) return { query: "بلاستيك", label: "البلاستيك", confidence: 50 };
+    if (!wSum) return { query: "بلاستيك", label: "البلاستيك", confidence: 50 };
+
+    // قارورة ماء PET: جسم مزرق + غطاء ملون (مثل البنفسجي) في وسط الصورة
+    if (cyan / wSum > 0.08 && (purple / wSum > 0.015 || colorful / wSum > 0.08)) {
+      return { query: "بلاستيك", label: "البلاستيك", confidence: 86 };
+    }
 
     const ratios: Record<string, number> = {
-      palm: (green + brown * 1.2) / n,
-      wood: (brown + green * 0.6) / n,
-      metal: gray / n,
-      paper: bright / n,
-      plastic: colorful / n,
-      glass: (bright * 0.45 + gray * 0.35) / n,
+      palm: (green + brown * 1.2) / wSum,
+      wood: (brown + green * 0.6) / wSum,
+      metal: Math.max(0, gray - cyan * 0.8 - yellow * 0.5) / wSum,
+      paper: bright / wSum,
+      plastic: (colorful + cyan * 1.4 + purple * 1.8) / wSum,
+      glass: (bright * 0.45 + gray * 0.25) / wSum,
     };
 
     const bestId = Object.entries(ratios).sort((a, b) => b[1] - a[1])[0][0];
-    const cat = RECYCLE_CATEGORIES.find((c) => c.id === bestId) ?? RECYCLE_CATEGORIES[4];
+    const cat = RECYCLE_CATEGORIES.find((c) => c.id === bestId) ?? RECYCLE_CATEGORIES[2];
     const conf = Math.min(91, Math.max(57, Math.round(ratios[bestId] * 95 + 48)));
 
-    return { query: cat.keywords[0], label: cat.label, confidence: conf };
+    return { query: bestId === "plastic" ? "بلاستيك" : cat.keywords[0], label: cat.label, confidence: conf };
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -483,8 +531,9 @@ function AlertBox({ msg, variant="info" }:{ msg:string; variant?:"info"|"success
 // ═══════════════════════════════════════════════════════════════
 // HEADER — HRDA style: white top, green identity bar
 // ═══════════════════════════════════════════════════════════════
-function Header({ page, setPage, loggedIn, setLoggedIn }:{
+function Header({ page, setPage, loggedIn, setLoggedIn, isStaff, setIsStaff }:{
   page:Page; setPage:(p:Page)=>void; loggedIn:boolean; setLoggedIn:(v:boolean)=>void;
+  isStaff:boolean; setIsStaff:(v:boolean)=>void;
 }) {
   const [mob, setMob] = useState(false);
 
@@ -492,6 +541,7 @@ function Header({ page, setPage, loggedIn, setLoggedIn }:{
     { label:"الرئيسية", p:"home" as Page },
     { label:"الخدمات", p:"service" as Page },
     { label:"الورش التدريبية", p:"workshops" as Page },
+    ...(isStaff ? [{ label:"مسح الدرون", p:"farm-test" as Page }] : []),
   ];
 
   const dashTabs = [
@@ -512,7 +562,7 @@ function Header({ page, setPage, loggedIn, setLoggedIn }:{
           <div className="flex items-center gap-3 text-xs" style={{color:"var(--muted-foreground)"}}>
             <button className="hover:underline transition-colors">English</button>
             <span style={{color:"var(--border)"}}>|</span>
-            <button className="flex items-center gap-1 hover:underline"><Phone size={10}/> ٩٢٠٠٠١٢٣٤</button>
+            <button className="flex items-center gap-1 hover:underline"><Phone size={10}/> +966533506105</button>
           </div>
         </div>
       </div>
@@ -558,7 +608,7 @@ function Header({ page, setPage, loggedIn, setLoggedIn }:{
                 <button className="p-2 rounded-sm border transition-all hover:bg-gray-50" style={{borderColor:"var(--border)"}}>
                   <Bell size={16} style={{color:"var(--muted-foreground)"}}/>
                 </button>
-                <button onClick={()=>{setLoggedIn(false);setPage("home");}}
+                <button onClick={()=>{setLoggedIn(false);setIsStaff(false);setPage("home");}}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border text-xs font-bold transition-all hover:bg-gray-50"
                   style={{fontFamily:F,borderColor:"var(--border)",color:"var(--foreground)"}}>
                   <LogOut size={13}/> خروج
@@ -613,7 +663,7 @@ function Footer({ setPage, onOpenChat }:{ setPage:(p:Page)=>void; onOpenChat:()=
       {/* Gold top line */}
       <div className="h-1" style={{background:`linear-gradient(90deg, ${GD}, ${GOLD}, ${GD})`}}/>
       <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-4 gap-8 mb-10">
+        <div className="grid md:grid-cols-3 gap-8 mb-10">
           {/* Brand col */}
           <div>
             <div className="flex items-center gap-3 mb-4">
@@ -624,17 +674,24 @@ function Footer({ setPage, onOpenChat }:{ setPage:(p:Page)=>void; onOpenChat:()=
             {/* Social */}
             <div className="flex gap-2 mt-4">
               {["𝕏","in","f","▶"].map(s=>(
-                <div key={s} className="w-8 h-8 rounded-sm flex items-center justify-center text-xs font-bold transition-all hover:opacity-80 cursor-pointer" style={{background:"rgba(255,255,255,0.08)",color:"#A8C490"}}>
+                <a
+                  key={s}
+                  href="https://moneerafahaid-collab.github.io/suqoor-tuwaiq-hail/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-sm flex items-center justify-center text-xs font-bold transition-all hover:opacity-80"
+                  style={{background:"rgba(255,255,255,0.08)",color:"#A8C490"}}
+                  aria-label="صقور طويق حائل"
+                >
                   {s}
-                </div>
+                </a>
               ))}
             </div>
           </div>
           {/* Links */}
           {[
             { title:"الخدمات", links:[{l:"إزالة المخلفات",p:"service" as Page},{l:"الورش التدريبية",p:"workshops" as Page},{l:"المساعد الذكي",chat:true}] },
-            { title:"حسابي", links:[{l:"معلوماتي",p:"dashboard"},{l:"طلباتي",p:"dashboard"},{l:"ورشاتي",p:"dashboard"}] },
-            { title:"تواصل معنا", links:[], extra:["📞 920001234","✉️ support@aoud.sa","📍 حائل، المملكة العربية السعودية"] },
+            { title:"تواصل معنا", links:[], extra:["📞 +966533506105","✉️ tuwaiq.falcons@gmail.com","📍 حائل، غرفة حائل التجارية"] },
           ].map(col=>(
             <div key={col.title}>
               <h4 className="font-black text-sm mb-4 pb-2 border-b" style={{color:GOLD,borderColor:"rgba(255,255,255,0.1)"}}>
@@ -912,7 +969,9 @@ function HomePage({ setPage, onOpenChat }:{ setPage:(p:Page)=>void; onOpenChat:(
 // ═══════════════════════════════════════════════════════════════
 // LOGIN PAGE
 // ═══════════════════════════════════════════════════════════════
-function LoginPage({ setLoggedIn, setPage }:{ setLoggedIn:(v:boolean)=>void; setPage:(p:Page)=>void }) {
+function LoginPage({ setLoggedIn, setPage }:{
+  setLoggedIn:(v:boolean)=>void; setPage:(p:Page)=>void;
+}) {
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
@@ -971,9 +1030,6 @@ function LoginPage({ setLoggedIn, setPage }:{ setLoggedIn:(v:boolean)=>void; set
 
               <div className="text-center text-xs mt-4" style={{color:"var(--muted-foreground)",fontFamily:F}}>
                 ليس لديك حساب؟ <button className="font-bold hover:underline" style={{color:G}}>إنشاء حساب جديد</button>
-              </div>
-              <div className="mt-4 pt-4 border-t text-center text-xs" style={{borderColor:"var(--border)",color:"var(--muted-foreground)",fontFamily:F}}>
-                يمكنك الدخول بأي بيانات للتجربة
               </div>
             </div>
           </div>
@@ -1103,7 +1159,8 @@ function DashboardPage({ tab, setTab, setPage }:{ tab:string; setTab:(t:string)=
 // SERVICE PAGE
 // ═══════════════════════════════════════════════════════════════
 function ServicePage() {
-  const [location,setLocation]=useState("");
+  const [picked,setPicked]=useState<PickedLocation|null>(null);
+  const [locationNote,setLocationNote]=useState("");
   const [wasteType,setWasteType]=useState("سعف نخيل");
   const [tons,setTons]=useState("");
   const [notes,setNotes]=useState("");
@@ -1112,6 +1169,13 @@ function ServicePage() {
   const [done,setDone]=useState(false);
 
   function doCalc(){const t=parseFloat(tons);if(!isNaN(t)&&t>0)setCalc({min:+(t*0.5).toFixed(2),max:+(t*0.7).toFixed(2)});}
+  const locationLabel = picked
+    ? (locationNote.trim() ? `${locationNote.trim()} — ${picked.label}` : picked.label)
+    : "";
+
+  function resetForm(){
+    setDone(false);setStep(1);setTons("");setCalc(null);setPicked(null);setLocationNote("");setNotes("");
+  }
 
   if(done) return (
     <div dir="rtl" className="max-w-xl mx-auto px-4 py-14" style={{fontFamily:F}}>
@@ -1124,12 +1188,12 @@ function ServicePage() {
           <h2 className="font-black text-lg mb-2" style={{fontFamily:F,color:"var(--foreground)"}}>تم إرسال طلبك بنجاح!</h2>
           <p className="text-sm mb-5" style={{color:"var(--muted-foreground)",fontFamily:F}}>سيتواصل معك فريقنا خلال ٢٤ ساعة</p>
           <div className="border rounded-sm p-4 text-sm text-right mb-5 space-y-2" style={{background:"var(--muted)",borderColor:"var(--border)"}}>
-            {[["رقم الطلب","SRV-2025-00289"],["النوع",wasteType],["الكمية",`${tons} طن`],...(calc?[["السماد المتوقع",`${calc.min}–${calc.max} طن`]]:[])]
+            {[["رقم الطلب","SRV-2025-00289"],["الموقع",locationLabel],["النوع",wasteType],["الكمية",`${tons} طن`],...(calc?[["السماد المتوقع",`${calc.min}–${calc.max} طن`]]:[])]
               .map(([k,v])=>(
                 <div key={k} className="flex justify-between"><span style={{color:"var(--muted-foreground)"}}>{k}</span><span style={{fontWeight:700}}>{v}</span></div>
               ))}
           </div>
-          <button onClick={()=>{setDone(false);setStep(1);setTons("");setCalc(null);setLocation("");}}
+          <button onClick={resetForm}
             className="px-6 py-2.5 rounded-sm text-sm font-bold text-white" style={{background:G,fontFamily:F}}>
             تقديم طلب جديد
           </button>
@@ -1181,13 +1245,19 @@ function ServicePage() {
                 </h2>
               </div>
               <div className="p-5 space-y-4">
-                <Field label="موقع المزرعة" required><TInput placeholder="حائل، طريق الملك عبدالعزيز..." value={location} onChange={setLocation}/></Field>
-                <Field label="نوع المخلفات" required><TSelect value={wasteType} onChange={setWasteType} options={["سعف نخيل","أغصان أشجار","جريد النخيل","مخلفات مختلطة"]}/></Field>
+                <Field label="موقع المزرعة" required hint="حدّد الموقع على الخريطة أو استخدم موقعك الحالي">
+                  <LocationPicker value={picked} onChange={setPicked}/>
+                </Field>
+                <Field label="وصف إضافي للموقع" hint="اختياري: اسم المزرعة أو أقرب معلم">
+                  <TInput placeholder="مثال: مزرعة الشمري، غرب الطريق..." value={locationNote} onChange={setLocationNote}/>
+                </Field>
+                <Field label="نوع المخلفات" required><TSelect value={wasteType} onChange={setWasteType} options={["سعف نخيل","أغصان أشجار","جريد النخيل","مخلفات حيوانية","مخلفات المواشي","مخلفات مختلطة"]}/></Field>
                 <Field label="تقدير الكمية (بالطن)" required hint="أدخل الكمية التقريبية"><TInput placeholder="مثال: 3" value={tons} onChange={setTons} type="number"/></Field>
                 <Field label="ملاحظات"><TInput placeholder="أي تفاصيل أخرى..." value={notes} onChange={setNotes}/></Field>
                 <AlertBox msg="سيتم التواصل معك خلال ٢٤ ساعة من تقديم الطلب لتنسيق موعد الزيارة." variant="info"/>
-                <button onClick={()=>{if(location&&tons){doCalc();setStep(2);}}}
-                  className="w-full py-2.5 rounded-sm text-sm font-black text-white transition-all hover:opacity-90"
+                <button onClick={()=>{if(picked&&tons){doCalc();setStep(2);}}}
+                  className="w-full py-2.5 rounded-sm text-sm font-black text-white transition-all hover:opacity-90 disabled:opacity-40"
+                  disabled={!picked||!tons}
                   style={{background:G,fontFamily:F}}>
                   التالي: الحساب الذكي ←
                 </button>
@@ -1251,7 +1321,7 @@ function ServicePage() {
               <div className="p-5">
                 <AlertBox msg="تأكد من صحة البيانات. سيتم التواصل معك لتأكيد الطلب." variant="warning"/>
                 <div className="mt-4 border rounded-sm overflow-hidden" style={{borderColor:"var(--border)"}}>
-                  {[["موقع المزرعة",location],["نوع المخلفات",wasteType],["الكمية",`${tons} طن`],["السماد المتوقع",calc?`${calc.min}–${calc.max} طن`:"–"],...(notes?[["الملاحظات",notes]]:[])]
+                  {[["موقع المزرعة",locationLabel],["الإحداثيات",picked?`${picked.lat.toFixed(5)}، ${picked.lng.toFixed(5)}`:""],["نوع المخلفات",wasteType],["الكمية",`${tons} طن`],["السماد المتوقع",calc?`${calc.min}–${calc.max} طن`:"–"],...(notes?[["الملاحظات",notes]]:[])]
                     .map(([k,v])=>(
                       <div key={k} className="flex justify-between items-center px-4 py-3 text-sm border-b last:border-b-0" style={{borderColor:"var(--border)"}}>
                         <span style={{color:"var(--muted-foreground)",fontFamily:F}}>{k}</span>
@@ -1392,7 +1462,7 @@ function WorkshopsPage() {
 // FLOATING CHATBOT
 // ═══════════════════════════════════════════════════════════════
 function FloatingChatbot({ open, onOpenChange }:{ open:boolean; onOpenChange:(v:boolean)=>void }) {
-  const [msgs,setMsgs]=useState<Message[]>([{id:0,from:"bot",text:"أهلاً! أنا عشيبة AI 🌿 مساعدتك الذكية في منصة عود.\n\nصوّري المادة أو اكتبي وصفها، وأرشدك: هل تصلح لإعادة التدوير؟ وأي ورشة تناسبك؟\n\n🫙 زجاج · 📄 ورق · ♻️ بلاستيك · 🔩 حديد · 🌴 سعف نخيل"}]);
+  const [msgs,setMsgs]=useState<Message[]>([{id:0,from:"bot",text:"أهلاً! أنا عشيبة AI 🌿 مساعدتك الذكية في منصة عود.\n\nصوّري المادة أو اكتبي وصفها، وأرشدك: هل تصلح لإعادة التدوير؟ وأي ورشة تناسبك؟\n\n🫙 زجاج · 📄 ورق · ♻️ بلاستيك · 🔩 حديد · 🌴 سعف نخيل · 🐄 حيوانية ومواشي"}]);
   const [input,setInput]=useState("");
   const [typing,setTyping]=useState(false);
   const [analyzing,setAnalyzing]=useState(false);
@@ -1433,7 +1503,7 @@ function FloatingChatbot({ open, onOpenChange }:{ open:boolean; onOpenChange:(v:
       const analysis = await analyzeImageFile(file);
       setMsgs(m=>[...m,{id:Date.now()+1,from:"bot",text:botReplyFromPhoto(analysis)}]);
     } catch {
-      setMsgs(m=>[...m,{id:Date.now()+1,from:"bot",text:"تعذّر تحليل الصورة. صِف المادة يدوياً (مثل: زجاج، ورق، سعف نخيل)."}]);
+      setMsgs(m=>[...m,{id:Date.now()+1,from:"bot",text:"تعذّر تحليل الصورة. صِف المادة يدوياً (مثل: زجاج، ورق، سعف نخيل، مخلفات حيوانية)."}]);
     } finally {
       setAnalyzing(false);
     }
@@ -1626,23 +1696,29 @@ function FloatingChatbot({ open, onOpenChange }:{ open:boolean; onOpenChange:(v:
 export default function App() {
   const [page,setPage]=useState<Page>("home");
   const [loggedIn,setLoggedIn]=useState(false);
+  const [isStaff,setIsStaff]=useState(false);
   const [dashTab,setDashTab]=useState("info");
   const [chatOpen,setChatOpen]=useState(false);
 
-  function nav(p:Page){if(p==="dashboard"&&!loggedIn){setPage("login");return;}setPage(p);}
+  function nav(p:Page){
+    if(p==="dashboard"&&!loggedIn){setPage("login");return;}
+    if(p==="farm-test"&&!isStaff){setPage("login");return;}
+    setPage(p);
+  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{fontFamily:F,direction:"rtl",background:"var(--background)"}}>
-      {page!=="login" && <Header page={page} setPage={nav} loggedIn={loggedIn} setLoggedIn={setLoggedIn}/>}
+      {page!=="login" && <Header page={page} setPage={nav} loggedIn={loggedIn} setLoggedIn={setLoggedIn} isStaff={isStaff} setIsStaff={setIsStaff}/>}
       <main className="flex-1">
         {page==="home" && <HomePage setPage={nav} onOpenChat={()=>setChatOpen(true)}/>}
         {page==="login" && <LoginPage setLoggedIn={setLoggedIn} setPage={setPage}/>}
         {page==="dashboard" && <DashboardPage tab={dashTab} setTab={setDashTab} setPage={nav}/>}
         {page==="service" && <ServicePage/>}
         {page==="workshops" && <WorkshopsPage/>}
+        {page==="farm-test" && <FieldScanPage/>}
       </main>
-      {page!=="login" && <Footer setPage={nav} onOpenChat={()=>setChatOpen(true)}/>}
-      {page!=="login" && <FloatingChatbot open={chatOpen} onOpenChange={setChatOpen}/>}
+      {page!=="login" && page!=="farm-test" && <Footer setPage={nav} onOpenChat={()=>setChatOpen(true)}/>}
+      {page!=="login" && page!=="farm-test" && <FloatingChatbot open={chatOpen} onOpenChange={setChatOpen}/>}
     </div>
   );
 }
