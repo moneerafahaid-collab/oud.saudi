@@ -33,10 +33,14 @@
       display: grid;
       grid-template-columns: 380px 1fr;
       height: 100vh;
+      overflow: hidden;
     }
     @media (max-width: 900px) {
-      .shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-      .side { max-height: 46vh; overflow: auto; }
+      .shell { grid-template-columns: 1fr; grid-template-rows: minmax(340px, 58vh) 1fr; }
+      .side { max-height: none; overflow: hidden; min-height: 0; }
+      .side-head { padding: 0.7rem 1rem; }
+      .side-head h1 { font-size: 1rem; }
+      .side-head p { display: none; }
     }
 
     /* Sidebar */
@@ -46,6 +50,9 @@
       display: flex;
       flex-direction: column;
       z-index: 5;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
     }
     .side-head {
       padding: 1.1rem 1.25rem;
@@ -89,11 +96,22 @@
     .step-dot.done .bar { background: var(--g); }
     .step-dot.active { color: var(--g); font-weight: 700; }
 
+    .side-head, .steps, .side-foot { flex-shrink: 0; }
     .side-body {
-      flex: 1;
-      overflow: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: scroll;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
       padding: 1.1rem 1.25rem;
+      -webkit-overflow-scrolling: touch;
     }
+    .side-body::-webkit-scrollbar { width: 10px; }
+    .side-body::-webkit-scrollbar-thumb {
+      background: #C5D2C4;
+      border-radius: 8px;
+    }
+    .side-body::-webkit-scrollbar-track { background: #F0F4EF; }
     .side-body h2 {
       font-size: 1.05rem;
       margin-bottom: 0.4rem;
@@ -250,19 +268,26 @@
     .pin.infect { background: var(--danger); width: 34px; height: 34px; font-size: 14px; }
     .pin.waste { background: #B91C1C; border-radius: 4px; }
     .waste-label {
-      background: rgba(185, 28, 28, 0.95);
+      background: rgba(185, 28, 28, 0.96);
       color: #fff;
-      border: 1px solid #fff;
-      border-radius: 6px;
-      padding: 4px 8px;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      padding: 6px 10px;
       font-size: 11px;
       font-weight: 700;
       font-family: "IBM Plex Sans Arabic", sans-serif;
       white-space: nowrap;
       text-align: center;
       line-height: 1.35;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      min-width: 118px;
     }
+    .waste-label .waste-ico {
+      display: inline-block;
+      margin-left: 4px;
+      font-size: 12px;
+    }
+    .waste-label small { display: block; font-size: 10px; font-weight: 600; opacity: 0.95; }
     .hum-label {
       background: rgba(230, 126, 34, 0.95);
       color: #fff;
@@ -441,6 +466,153 @@
       display: none;
     }
     .hint-edit.show { display: block; }
+
+    /* CWSI / thermal dashboard */
+    .cwsi-gauge-wrap { text-align: center; margin: 0.2rem 0 0.55rem; }
+    .cwsi-val {
+      font-size: 1.7rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .cwsi-bar {
+      height: 8px;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #047857 0%, #D97706 50%, #B91C1C 100%);
+      position: relative;
+      margin: 0.45rem 0 0.25rem;
+    }
+    .cwsi-needle {
+      position: absolute;
+      top: -4px;
+      width: 3px;
+      height: 16px;
+      background: #0F2E1F;
+      border-radius: 2px;
+      transform: translateX(-50%);
+    }
+    .cwsi-bands {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.62rem;
+      color: var(--muted);
+    }
+    .sim-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.55rem;
+      align-items: center;
+    }
+    .sim-controls button {
+      padding: 0.38rem 0.55rem;
+      font-size: 0.72rem;
+      border-radius: 6px;
+    }
+    .sim-controls button.on {
+      background: var(--gold);
+      color: var(--gd);
+      border-color: var(--gold);
+    }
+    .toggle-live {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      margin-top: 0.45rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .hour-slider { width: 100%; margin-top: 0.35rem; accent-color: var(--gold); }
+    .spark { display: block; width: 100%; height: 58px; margin-top: 0.25rem; }
+    .thermal-hud {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 1000;
+      background: rgba(15, 46, 31, 0.9);
+      color: #fff;
+      padding: 0.55rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      border: 1px solid rgba(201, 168, 76, 0.4);
+      min-width: 148px;
+      display: none;
+      line-height: 1.55;
+    }
+    .thermal-hud.show { display: block; }
+    .thermal-hud b { color: var(--gold); }
+    .pin.thermal {
+      background: #7C3AED;
+      animation: pulse 1.2s infinite;
+    }
+    .thermal-ag-canvas {
+      pointer-events: none;
+      z-index: 350;
+      opacity: 0.93;
+    }
+    .flir-scale {
+      position: absolute;
+      bottom: 24px;
+      right: 12px;
+      z-index: 1000;
+      background: rgba(8, 12, 18, 0.92);
+      color: #fff;
+      border-radius: 8px;
+      padding: 0.5rem 0.55rem 0.55rem;
+      display: none;
+      border: 1px solid rgba(255, 180, 60, 0.35);
+      font-size: 0.68rem;
+      width: 52px;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    }
+    .flir-scale.show { display: block; }
+    .flir-scale .flir-title {
+      font-size: 0.58rem;
+      letter-spacing: 0.04em;
+      color: #FDE68A;
+      margin-bottom: 0.3rem;
+      font-weight: 700;
+    }
+    .flir-gradient {
+      height: 118px;
+      width: 16px;
+      margin: 0 auto;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.35);
+      background: linear-gradient(
+        to top,
+        #163A8C 0%,
+        #2E7BC8 18%,
+        #3DA89A 36%,
+        #7BC45A 52%,
+        #E0C94A 68%,
+        #E89A3A 84%,
+        #C44A18 100%
+      );
+    }
+    .flir-nums {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      margin-top: 0.35rem;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+    .flir-nums .lo { color: #93C5FD; }
+    .flir-nums .hi { color: #FDE68A; }
+    .scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #fff, #FDE68A, #fff, transparent);
+      box-shadow: 0 0 12px #FDE68A;
+      z-index: 450;
+      display: none;
+      pointer-events: none;
+    }
+    .scan-line.show { display: block; }
   </style>
 </head>
 <body>
@@ -449,7 +621,7 @@
       <div class="side-head">
         <div class="tag">منصة عَود · اختبار ميداني</div>
         <h1>مسح الدرون ورصد المخلفات</h1>
-        <p>تحديد المزرعة ← الدرون ← المخلفات ← رصد الإصابات ← التقرير</p>
+        <p>تحديد المزرعة ← الدرون ← المخلفات ← رصد حراري ← المسار ← التقرير</p>
       </div>
 
       <div class="steps" id="stepDots"></div>
@@ -468,6 +640,16 @@
         جاهز للمسح · <strong>مزرعة تجريبية — حائل</strong>
       </div>
       <div class="legend" id="legend"></div>
+      <div class="thermal-hud" id="thermalHud"></div>
+      <div class="flir-scale" id="flirScale">
+        <div class="flir-title">LST °C</div>
+        <div class="flir-gradient"></div>
+        <div class="flir-nums">
+          <span class="hi" id="flirMax">—</span>
+          <span class="lo" id="flirMin">—</span>
+        </div>
+      </div>
+      <div class="scan-line" id="thermalScanLine"></div>
       <div class="scan-banner" id="scanBanner">
         <div class="spin"></div>
         <div style="font-weight:700;margin-bottom:0.25rem">الدرون يقوم بالمسح…</div>
@@ -478,6 +660,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.min.js"></script>
+  <script src="./cwsi-telemetry.js?v=aglst"></script>
   <script>
     /* ═══════════════════════════════════════════
        إحداثيات المزرعة التجريبية — شمال حائل
@@ -592,7 +775,7 @@
       { id: "farm",    title: "تحديد المزرعة",     short: "المزرعة" },
       { id: "scan",    title: "مسح الدرون",        short: "المسح" },
       { id: "waste",   title: "رصد المخلفات",      short: "مخلفات" },
-      { id: "infect",  title: "مسار الإصابة",      short: "إصابة" },
+      { id: "infect",  title: "رصد الإصابة الحراري", short: "إصابة" },
       { id: "soil",    title: "حساس التربة",       short: "تربة" },
       { id: "report",  title: "تقرير وتنبؤ",       short: "تقرير" },
     ];
@@ -609,6 +792,36 @@
     let map, layers = {};
     let scanDone = false;
     let logLines = [];
+    let thermalStream = null;
+    let thermalUnsub = null;
+    let lastThermal = null;
+    let thermalHistory = [];
+    let thermalDots = [];
+    const ThermalAg = {
+      canvas: null,
+      ctx: null,
+      buf: null,
+      bufCtx: null,
+      BW: 280,
+      BH: 280,
+      bounds: null,
+      origin: null,
+      mLat: 110860,
+      mLng: 98400,
+      hour: 10.5,
+      reveal: 1,
+      tMin: 22,
+      tMax: 48,
+      lastBufHour: -1,
+      job: 0,
+      sourceRgb: null,
+      sourceKey: "",
+    };
+    let observationDone = false;
+    let observationRunning = false;
+    let pathShown = false;
+    let infectUiReady = false;
+    let peakCwsi = 0;
 
     // ── Map init ──
     // ── Map init — صور أقمار صناعية من Google (بدل Esri التي تظهر Map data not yet available)
@@ -669,6 +882,7 @@
     }
 
     function clearAllOverlays() {
+      destroyThermalAg();
       Object.keys(layers).forEach(clearLayer);
     }
 
@@ -926,9 +1140,9 @@
     function wasteLabelIcon(w) {
       return L.divIcon({
         className: "",
-        html: `<div class="waste-label">${w.label}<small>توقع الكمية: ${w.tons} طن</small></div>`,
-        iconSize: [130, 36],
-        iconAnchor: [65, 42],
+        html: `<div class="waste-label"><span class="waste-ico">▣</span>${w.label}<small>${w.tons} طن</small></div>`,
+        iconSize: [132, 44],
+        iconAnchor: [66, 22],
       });
     }
 
@@ -956,14 +1170,8 @@
           (w.bounds[0][0] + w.bounds[1][0]) / 2,
           (w.bounds[0][1] + w.bounds[1][1]) / 2,
         ];
-        // التسمية فوق المربع
-        const labelPos = [
-          Math.max(w.bounds[0][0], w.bounds[1][0]) + 0.00015,
-          (w.bounds[0][1] + w.bounds[1][1]) / 2,
-        ];
-        group.addLayer(L.marker(labelPos, { icon: wasteLabelIcon(w), interactive: false }));
         group.addLayer(
-          L.marker(c, { icon: pinIcon("waste", "▣") }).bindPopup(
+          L.marker(c, { icon: wasteLabelIcon(w) }).bindPopup(
             `<div dir="rtl"><b>${w.label}</b><br/>توقع الكمية: ${w.tons} طن</div>`
           )
         );
@@ -1001,11 +1209,11 @@
       const R = FARM.infection.radiusM || 98;
       const circle = L.circle(t, {
         radius: R,
-        color: INFECT,
-        weight: 3,
+        color: "#FDE68A",
+        weight: 2,
         fillColor: INFECT,
-        fillOpacity: 0.22,
-        dashArray: "6 8",
+        fillOpacity: 0.04,
+        dashArray: "5 7",
       }).bindPopup(
         `<div dir="rtl" style="text-align:right;font-family:sans-serif;max-width:240px">
           <b style="color:${INFECT}">${FARM.infection.label}</b><br/>
@@ -1050,23 +1258,639 @@
       return circle;
     }
 
-    async function showInfectionPath() {
+    function bandLabel(band) {
+      return band === "optimal" ? "مثالي — بلا إجهاد" : band === "moderate" ? "إجهاد متوسط" : "إجهاد حرج";
+    }
+
+    function bandClass(band) {
+      return band === "optimal" ? "ok" : band === "moderate" ? "warn" : "danger";
+    }
+
+    function stopThermalStream() {
+      if (thermalUnsub) { thermalUnsub(); thermalUnsub = null; }
+      if (thermalStream) { thermalStream.dispose(); thermalStream = null; }
+    }
+
+    function teardownThermalUi() {
+      stopThermalStream();
+      const hud = document.getElementById("thermalHud");
+      if (hud) hud.classList.remove("show");
+      const flir = document.getElementById("flirScale");
+      if (flir) flir.classList.remove("show");
+      const scan = document.getElementById("thermalScanLine");
+      if (scan) scan.classList.remove("show");
+      destroyThermalAg();
+    }
+
+    function hash2(ix, iy) {
+      let n = (ix * 374761393 + iy * 668265263) | 0;
+      n = Math.imul(n ^ (n >>> 13), 1274126177);
+      return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+    }
+
+    function pointInFarm(lat, lng) {
+      const pts = FARM.boundary;
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const yi = pts[i][0], xi = pts[i][1];
+        const yj = pts[j][0], xj = pts[j][1];
+        const intersect = ((yi > lat) !== (yj > lat)) &&
+          (lng < ((xj - xi) * (lat - yi)) / ((yj - yi) || 1e-12) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function distM(a, b) {
+      const dlat = (a[0] - b[0]) * ThermalAg.mLat;
+      const dlng = (a[1] - b[1]) * ThermalAg.mLng;
+      return Math.hypot(dlat, dlng);
+    }
+
+    function sceneTemperature(lat, lng, hour) {
+      const C = window.CwsiTelemetry;
+      const Ta = C.airTemp(hour);
+      const sun = C.solarRadiation(hour) / 1000;
+      const x = (lng - ThermalAg.origin.lng) * ThermalAg.mLng;
+      const y = (lat - ThermalAg.origin.lat) * ThermalAg.mLat;
+      const n = hash2(Math.floor(x / 28), Math.floor(y / 28));
+      const desert = Ta + 9 + sun * 8 + (n - 0.5) * 1.4;
+      const inf = FARM.infection;
+      const dInf = distM([lat, lng], inf.target);
+
+      if (pointInFarm(lat, lng)) {
+        const patch = hash2(Math.floor(x / 55), Math.floor(y / 55));
+        let T = Ta + 1.2 + sun * 2.4 + (patch - 0.5) * 2.8;
+        T += Math.exp(-((dInf / ((inf.radiusM || 98) * 0.7)) ** 2)) * (5.5 + sun * 2);
+        (FARM.waste || []).forEach((w) => {
+          const c = [(w.bounds[0][0] + w.bounds[1][0]) / 2, (w.bounds[0][1] + w.bounds[1][1]) / 2];
+          const dw = distM([lat, lng], c);
+          if (dw < 40) T += (1 - dw / 40) * 2.2;
+        });
+        return T;
+      }
+
+      const cx = Math.round(x / 480) * 480;
+      const cy = Math.round(y / 480) * 480;
+      const pr = 150 + hash2(cx / 8, cy / 8) * 110;
+      const dPivot = Math.hypot(x - cx, y - cy);
+      if (dPivot < pr && hash2(cx, cy) > 0.28) {
+        const vigor = 0.35 + hash2(cx + 3, cy + 1) * 0.55;
+        return desert - (7 + sun * 3) * vigor * (1 - dPivot / pr) + (n - 0.5);
+      }
+      return desert;
+    }
+
+    function destroyThermalAg() {
+      if (ThermalAg._onView) {
+        map.off("move", ThermalAg._onView);
+        map.off("zoom", ThermalAg._onView);
+        map.off("viewreset", ThermalAg._onView);
+        ThermalAg._onView = null;
+      }
+      if (ThermalAg._onRebuild) {
+        map.off("moveend", ThermalAg._onRebuild);
+        map.off("zoomend", ThermalAg._onRebuild);
+        map.off("resize", ThermalAg._onRebuild);
+        ThermalAg._onRebuild = null;
+      }
+      if (ThermalAg._onClick) {
+        map.off("click", ThermalAg._onClick);
+        ThermalAg._onClick = null;
+      }
+      if (ThermalAg.canvas && ThermalAg.canvas.parentNode) {
+        ThermalAg.canvas.parentNode.removeChild(ThermalAg.canvas);
+      }
+      ThermalAg.canvas = null;
+      ThermalAg.ctx = null;
+      ThermalAg.lastBufHour = -1;
+    }
+
+    function latLngToTile(lat, lng, z) {
+      const n = 2 ** z;
+      const x = Math.floor(((lng + 180) / 360) * n);
+      const latRad = (lat * Math.PI) / 180;
+      const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+      return { x, y };
+    }
+
+    function loadSatTile(z, x, y) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        const t = setTimeout(() => resolve(null), 3500);
+        img.onload = () => { clearTimeout(t); resolve(img); };
+        img.onerror = () => { clearTimeout(t); resolve(null); };
+        img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+      });
+    }
+
+    function viewSourceKey() {
+      const c = map.getCenter();
+      return `${Math.round(map.getZoom())}:${c.lat.toFixed(3)}:${c.lng.toFixed(3)}:${ThermalAg.BW}x${ThermalAg.BH}`;
+    }
+
+    async function captureSatelliteRgb() {
+      const z = Math.min(18, Math.max(12, Math.round(map.getZoom())));
+      const size = mapCssSize();
+      const w = ThermalAg.BW;
+      const h = ThermalAg.BH;
+      const nw = map.containerPointToLatLng([0, 0]);
+      const se = map.containerPointToLatLng([size.x, size.y]);
+      const a = latLngToTile(nw.lat, nw.lng, z);
+      const b = latLngToTile(se.lat, se.lng, z);
+      const minX = Math.min(a.x, b.x) - 1;
+      const maxX = Math.max(a.x, b.x) + 1;
+      const minY = Math.min(a.y, b.y) - 1;
+      const maxY = Math.max(a.y, b.y) + 1;
+      const tiles = {};
+      const jobs = [];
+      for (let x = minX; x <= maxX; x++) {
+        for (let y = minY; y <= maxY; y++) {
+          jobs.push(loadSatTile(z, x, y).then((img) => { tiles[`${x},${y}`] = img; }));
+        }
+      }
+      await Promise.all(jobs);
+      const pix = {};
+      const tmp = document.createElement("canvas");
+      tmp.width = 256;
+      tmp.height = 256;
+      const tctx = tmp.getContext("2d");
+      Object.keys(tiles).forEach((k) => {
+        if (!tiles[k]) return;
+        tctx.clearRect(0, 0, 256, 256);
+        tctx.drawImage(tiles[k], 0, 0);
+        pix[k] = tctx.getImageData(0, 0, 256, 256).data;
+      });
+      const rgb = new Uint8Array(w * h * 3);
+      let hits = 0;
+      for (let row = 0; row < h; row++) {
+        const py = (row / Math.max(1, h - 1)) * size.y;
+        for (let col = 0; col < w; col++) {
+          const px = (col / Math.max(1, w - 1)) * size.x;
+          const ll = map.containerPointToLatLng([px, py]);
+          const p = map.project(ll, z);
+          const tx = Math.floor(p.x / 256);
+          const ty = Math.floor(p.y / 256);
+          const data = pix[`${tx},${ty}`];
+          const o = (row * w + col) * 3;
+          if (!data) continue;
+          const ox = ((Math.floor(p.x) % 256) + 256) % 256;
+          const oy = ((Math.floor(p.y) % 256) + 256) % 256;
+          const i = (oy * 256 + ox) * 4;
+          rgb[o] = data[i];
+          rgb[o + 1] = data[i + 1];
+          rgb[o + 2] = data[i + 2];
+          hits++;
+        }
+      }
+      if (hits < w * h * 0.2) {
+        ThermalAg.sourceRgb = null;
+        return false;
+      }
+      ThermalAg.sourceRgb = rgb;
+      return true;
+    }
+
+    function hotnessFromSample(r, g, b, lat, lng, hour) {
+      const veg = (g - r) / (Math.abs(r) + Math.abs(g) + 10);
+      const lum = (0.28 * r + 0.57 * g + 0.15 * b) / 255;
+      let cool = veg * 1.7 + (0.5 - lum) * 0.5;
+      cool = (cool + 0.28) / 1.05;
+      if (pointInFarm(lat, lng)) {
+        cool = Math.max(cool, 0.58) + 0.14 + veg * 0.12;
+      }
+      const dInf = distM([lat, lng], FARM.infection.target);
+      const R = FARM.infection.radiusM || 98;
+      if (dInf < R) cool -= 0.32 * (1 - dInf / R);
+      const sun = window.CwsiTelemetry.solarRadiation(hour) / 1000;
+      cool -= Math.max(0, -veg) * sun * 0.08;
+      return 1 - Math.max(0, Math.min(1, cool));
+    }
+
+    function paintBufferFromData(hour) {
+      const C = window.CwsiTelemetry;
+      const w = ThermalAg.BW;
+      const h = ThermalAg.BH;
+      const mapSize = mapCssSize();
+      if (!ThermalAg.buf || ThermalAg.buf.width !== w || ThermalAg.buf.height !== h) {
+        ThermalAg.buf = document.createElement("canvas");
+        ThermalAg.buf.width = w;
+        ThermalAg.buf.height = h;
+        ThermalAg.bufCtx = ThermalAg.buf.getContext("2d");
+      }
+      const img = ThermalAg.bufCtx.createImageData(w, h);
+      const src = ThermalAg.sourceRgb;
+      let tMin = 99;
+      let tMax = -20;
+      const temps = new Float32Array(w * h);
+      const Ta = C.airTemp(hour);
+
+      for (let row = 0; row < h; row++) {
+        const py = (row / Math.max(1, h - 1)) * mapSize.y;
+        for (let col = 0; col < w; col++) {
+          const px = (col / Math.max(1, w - 1)) * mapSize.x;
+          const ll = map.containerPointToLatLng([px, py]);
+          let T;
+          if (src) {
+            const o = (row * w + col) * 3;
+            const hot = hotnessFromSample(src[o], src[o + 1], src[o + 2], ll.lat, ll.lng, hour);
+            T = Ta + 2 + hot * 18;
+          } else {
+            T = sceneTemperature(ll.lat, ll.lng, hour);
+          }
+          temps[row * w + col] = T;
+          if (T < tMin) tMin = T;
+          if (T > tMax) tMax = T;
+        }
+      }
+
+      ThermalAg.tMin = tMin;
+      ThermalAg.tMax = tMax;
+      const span = Math.max(4, tMax - tMin);
+      for (let i = 0; i < temps.length; i++) {
+        const rgb = C.ironbow((temps[i] - tMin) / span);
+        const o = i * 4;
+        img.data[o] = rgb[0];
+        img.data[o + 1] = rgb[1];
+        img.data[o + 2] = rgb[2];
+        img.data[o + 3] = 245;
+      }
+      ThermalAg.bufCtx.putImageData(img, 0, 0);
+      ThermalAg.lastBufHour = hour;
+      const flirMax = document.getElementById("flirMax");
+      const flirMin = document.getElementById("flirMin");
+      if (flirMax) flirMax.textContent = tMax.toFixed(1);
+      if (flirMin) flirMin.textContent = tMin.toFixed(1);
+    }
+
+    async function rebuildThermalBuffer(hour) {
+      const job = ++ThermalAg.job;
+      sizeThermalBufferFromView();
+      ThermalAg.bounds = map.getBounds();
+      ThermalAg.origin = { lat: ThermalAg.bounds.getSouth(), lng: ThermalAg.bounds.getWest() };
+      ThermalAg.mLng = 98400 * Math.cos((FARM.center[0] * Math.PI) / 180);
+      const key = viewSourceKey();
+      if (ThermalAg.sourceKey !== key) {
+        ThermalAg.sourceRgb = null;
+        await captureSatelliteRgb();
+        if (job !== ThermalAg.job) return;
+        ThermalAg.sourceKey = key;
+      }
+      paintBufferFromData(hour);
+      blitThermalAg();
+    }
+
+    function blitThermalAg() {
+      if (!ThermalAg.canvas || !ThermalAg.buf) return;
+      const size = mapCssSize();
+      const w = Math.max(2, Math.round(size.x));
+      const h = Math.max(2, Math.round(size.y));
+      const canvas = ThermalAg.canvas;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      const tl = map.containerPointToLayerPoint([0, 0]);
+      L.DomUtil.setPosition(canvas, tl);
+      const ctx = ThermalAg.ctx;
+      ctx.clearRect(0, 0, w, h);
+      const visH = Math.max(1, Math.round(h * ThermalAg.reveal));
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(ThermalAg.buf, 0, 0, ThermalAg.BW, Math.round(ThermalAg.BH * ThermalAg.reveal), 0, 0, w, visH);
+    }
+
+    function mapCssSize() {
+      const el = map.getContainer();
+      return { x: el.clientWidth || map.getSize().x, y: el.clientHeight || map.getSize().y };
+    }
+
+    function sizeThermalBufferFromView() {
+      const size = mapCssSize();
+      const aspect = size.x / Math.max(1, size.y);
+      const maxPix = 480;
+      if (aspect >= 1) {
+        ThermalAg.BW = maxPix;
+        ThermalAg.BH = Math.max(180, Math.round(maxPix / aspect));
+      } else {
+        ThermalAg.BH = maxPix;
+        ThermalAg.BW = Math.max(180, Math.round(maxPix * aspect));
+      }
+    }
+
+    async function syncThermalToMapView(rebuild) {
+      if (rebuild) {
+        ThermalAg.lastBufHour = -1;
+        await rebuildThermalBuffer(ThermalAg.hour);
+        return;
+      }
+      blitThermalAg();
+    }
+
+    function positionThermalAg() {
+      blitThermalAg();
+    }
+
+    function paintThermalGrid(hour) {
+      if (!ThermalAg.canvas) return;
+      ThermalAg.hour = hour;
+      if (ThermalAg.sourceRgb || ThermalAg.buf) {
+        if (Math.abs(hour - ThermalAg.lastBufHour) > 0.1) paintBufferFromData(hour);
+        blitThermalAg();
+        return;
+      }
+      rebuildThermalBuffer(hour);
+    }
+
+    async function buildThermalGrid() {
+      destroyThermalAg();
+      map.invalidateSize();
+      map.fitBounds(L.latLngBounds(FARM.boundary), { padding: [28, 28], maxZoom: 17, animate: false });
+      ThermalAg.reveal = 1;
+      const canvas = L.DomUtil.create("canvas", "thermal-ag-canvas");
+      map.getPanes().overlayPane.appendChild(canvas);
+      ThermalAg.canvas = canvas;
+      ThermalAg.ctx = canvas.getContext("2d");
+      ThermalAg._onView = () => positionThermalAg();
+      ThermalAg._onRebuild = () => {
+        clearTimeout(ThermalAg._deb);
+        ThermalAg._deb = setTimeout(() => syncThermalToMapView(true), 240);
+      };
+      ThermalAg._onClick = (e) => {
+        const T = sceneTemperature(e.latlng.lat, e.latlng.lng, ThermalAg.hour);
+        const n = (T - ThermalAg.tMin) / Math.max(4, ThermalAg.tMax - ThermalAg.tMin);
+        const zone = pointInFarm(e.latlng.lat, e.latlng.lng) ? "داخل المزرعة المحددة" : "خارج الحدود";
+        L.popup()
+          .setLatLng(e.latlng)
+          .setContent(
+            `<div dir="rtl" style="font-family:sans-serif;min-width:150px">
+              <b>تصوير حراري زراعي</b> · ${zone}<br/>
+              حرارة ظاهرية <b>${T.toFixed(1)} °C</b><br/>
+              <span dir="ltr">${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}</span>
+              <div style="margin-top:6px;height:8px;border-radius:4px;background:${window.CwsiTelemetry.ironbowCss(n)}"></div>
+            </div>`
+          )
+          .openOn(map);
+      };
+      map.on("click", ThermalAg._onClick);
+      await syncThermalToMapView(true);
+      map.on("move", ThermalAg._onView);
+      map.on("zoom", ThermalAg._onView);
+      map.on("viewreset", ThermalAg._onView);
+      map.on("resize", ThermalAg._onRebuild);
+      map.on("moveend", ThermalAg._onRebuild);
+      map.on("zoomend", ThermalAg._onRebuild);
+      const flir = document.getElementById("flirScale");
+      if (flir) flir.classList.add("show");
+    }
+
+    function sparkSvg(history, key, color, lo, hi) {
+      if (!history || history.length < 2) {
+        return `<svg class="spark" viewBox="0 0 280 58"></svg>`;
+      }
+      const w = 280, h = 58, p = 4;
+      const vals = history.map((x) => x[key]);
+      const span = Math.max(0.04, hi - lo);
+      const pts = vals.map((v, i) => {
+        const x = p + (i / (vals.length - 1)) * (w - 2 * p);
+        const y = h - p - ((v - lo) / span) * (h - 2 * p);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(" ");
+      return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline fill="none" stroke="${color}" stroke-width="2.2" points="${pts}"/></svg>`;
+    }
+
+    function updateThermalHud(s) {
+      const hud = document.getElementById("thermalHud");
+      if (!hud || !s) return;
+      hud.classList.add("show");
+      hud.innerHTML =
+        `تصوير حراري زراعي · <b>${s.timestamp}</b><br/>` +
+        `CWSI <b>${s.cwsi.toFixed(2)}</b> · Tc ${s.Tc}°C<br/>` +
+        `المشهد ${ThermalAg.tMin.toFixed(1)}–${ThermalAg.tMax.toFixed(1)}°C`;
+    }
+
+    function onThermalTick(state) {
+      lastThermal = state;
+      thermalHistory.push(state.sample);
+      if (thermalHistory.length > 80) thermalHistory.shift();
+      peakCwsi = Math.max(peakCwsi, state.sample.cwsi);
+      paintThermalGrid(state.hour);
+      updateInfectDashboard(state);
+      updateThermalHud(state.sample);
+      try {
+        parent.postMessage({ type: "cwsi:tick", payload: state.sample }, "*");
+      } catch (_) {}
+    }
+
+    function startThermalStream() {
+      stopThermalStream();
+      thermalHistory = [];
+      const C = window.CwsiTelemetry;
+      thermalStream = C.createStream({ zone: "infection", startHour: 10.5, intervalMs: 280 });
+      thermalUnsub = thermalStream.subscribe(onThermalTick);
+    }
+
+    function infectDashboardHtml() {
+      const d = FARM.infection.diagnosis;
+      return `
+          <h2>رصد أماكن الإصابة</h2>
+          <p class="desc">قبل المسار: خريطة حرارية زراعية لكامل المشهد — محاور الري باردة (أزرق) والصحراء حارة (برتقالي).</p>
+          <div class="card" id="cwsiDash">
+            <h3>لوحة CWSI الحرارية</h3>
+            <div class="cwsi-gauge-wrap">
+              <div class="cwsi-val" id="cwsiVal">—</div>
+              <div class="cwsi-bar"><div class="cwsi-needle" id="cwsiNeedle"></div></div>
+              <div class="cwsi-bands"><span>0 مثالي</span><span>0.3</span><span>0.6</span><span>1 حرج</span></div>
+              <span class="badge info" id="cwsiBand" style="margin-top:0.35rem">—</span>
+            </div>
+            <div class="metric"><span>Tc / Ta</span><strong><span id="mTc">—</span> / <span id="mTa">—</span></strong></div>
+            <div class="metric"><span>VPD · إشعاع · RH</span><strong><span id="mVpd">—</span> · <span id="mRs">—</span> · <span id="mRh">—</span></strong></div>
+            <div class="metric"><span>الوقت المحاكى</span><strong id="mTime">—</strong></div>
+            <div id="cwsiSpark"></div>
+            <div class="sim-controls">
+              <button type="button" class="btn-ghost" id="cwsiPlay">إيقاف</button>
+              <button type="button" class="btn-ghost" data-speed="1">1x</button>
+              <button type="button" class="btn-ghost" data-speed="5">5x</button>
+              <button type="button" class="btn-ghost" data-speed="60">60x</button>
+            </div>
+            <label class="toggle-live"><input type="checkbox" id="cwsiLive"/> وضع الرصد الحي (توقيت الرياض)</label>
+            <input class="hour-slider" id="cwsiHour" type="range" min="0" max="239" value="105" />
+            <button type="button" class="btn-primary" id="cwsiSweep" style="width:100%;margin-top:0.55rem">تشغيل نافذة الرصد الحراري</button>
+          </div>
+          <div class="card">
+            <h3>هدف التوجيه</h3>
+            <div class="metric"><span>الحالة</span><span class="badge warn">${d.risk}</span></div>
+            <div class="metric"><span>الهدف</span><strong>${FARM.infection.label}</strong></div>
+            <div class="metric"><span>نصف قطر الدائرة</span><strong>${FARM.infection.radiusM} م</strong></div>
+          </div>
+          <div class="diag-box">
+            <strong>التشخيص:</strong> ${d.cause}<br/>
+            <strong>رصد ميداني:</strong> ${d.fieldFinding}
+          </div>
+        `;
+    }
+
+    function bindInfectControls() {
+      const play = document.getElementById("cwsiPlay");
+      if (play) {
+        play.onclick = () => {
+          if (!thermalStream) return;
+          const st = thermalStream.snapshot();
+          st.playing ? thermalStream.pause() : thermalStream.play();
+        };
+      }
+      document.querySelectorAll("[data-speed]").forEach((btn) => {
+        btn.onclick = () => {
+          if (!thermalStream) return;
+          thermalStream.setLiveMode(false);
+          thermalStream.setSpeed(Number(btn.getAttribute("data-speed")));
+          const live = document.getElementById("cwsiLive");
+          if (live) live.checked = false;
+        };
+      });
+      const live = document.getElementById("cwsiLive");
+      if (live) {
+        live.onchange = () => thermalStream && thermalStream.setLiveMode(live.checked);
+      }
+      const slider = document.getElementById("cwsiHour");
+      if (slider) {
+        slider.oninput = () => {
+          if (!thermalStream) return;
+          const liveEl = document.getElementById("cwsiLive");
+          if (liveEl) liveEl.checked = false;
+          thermalStream.setHour(Number(slider.value) / 10);
+        };
+      }
+      const sweep = document.getElementById("cwsiSweep");
+      if (sweep) sweep.onclick = () => runObservationWindow();
+    }
+
+    function updateInfectDashboard(state) {
+      if (!state || !document.getElementById("cwsiVal")) return;
+      const s = state.sample;
+      const C = window.CwsiTelemetry;
+      document.getElementById("cwsiVal").textContent = s.cwsi.toFixed(2);
+      document.getElementById("cwsiVal").style.color = C.cwsiColor(s.cwsi);
+      document.getElementById("cwsiNeedle").style.left = `${s.cwsi * 100}%`;
+      const badge = document.getElementById("cwsiBand");
+      badge.textContent = bandLabel(s.band);
+      badge.className = `badge ${bandClass(s.band)}`;
+      document.getElementById("mTc").textContent = `${s.Tc} °C`;
+      document.getElementById("mTa").textContent = `${s.Ta} °C`;
+      document.getElementById("mVpd").textContent = `${s.VPD} kPa`;
+      document.getElementById("mRs").textContent = `${s.Rs} W/m²`;
+      document.getElementById("mRh").textContent = `${s.RH} %`;
+      document.getElementById("mTime").textContent = s.timestamp;
+      const spark = document.getElementById("cwsiSpark");
+      if (spark) spark.innerHTML = sparkSvg(thermalHistory, "cwsi", C.cwsiColor(s.cwsi), 0, 1);
+      const play = document.getElementById("cwsiPlay");
+      if (play) play.textContent = state.playing ? "إيقاف" : "تشغيل";
+      document.querySelectorAll("[data-speed]").forEach((btn) => {
+        btn.classList.toggle("on", Number(btn.getAttribute("data-speed")) === state.speed && !state.liveMode);
+      });
+      const slider = document.getElementById("cwsiHour");
+      if (slider && document.activeElement !== slider) slider.value = String(Math.round(state.hour * 10));
+      const sweep = document.getElementById("cwsiSweep");
+      if (sweep) {
+        sweep.disabled = observationRunning;
+        sweep.textContent = observationDone ? "إعادة نافذة الرصد الحراري" : "تشغيل نافذة الرصد الحراري";
+      }
+    }
+
+    async function enterInfectionThermal() {
+      observationDone = false;
+      observationRunning = false;
+      pathShown = false;
+      infectUiReady = false;
+      peakCwsi = 0;
       if (!layers.farm) showFarm();
       clearLayer("infectGroup");
       const group = L.layerGroup().addTo(map);
       layers.infectGroup = group;
-
-      document.getElementById("btnNext").disabled = true;
-
-      const circle = drawInfectionTarget(group);
-      map.fitBounds(circle.getBounds().pad(0.55));
-      setStatus(`اشتباه إصابة · <strong>رطوبة عالية حول المحيط — احتمال تعفن أسود</strong>`);
-      addLog(`ALERT infection @ ${FARM.infection.target[0]}, ${FARM.infection.target[1]} r=${FARM.infection.radiusM}m`);
-      (FARM.infection.humidityPoints || []).forEach((h) => addLog(`HUM ${h.id}=${h.value} (${h.level})`));
-      addLog(`FINDING: ${FARM.infection.diagnosis.fieldFinding}`);
+      drawInfectionTarget(group);
+      ThermalAg.hour = 10.5;
       renderStepBody();
-      await wait(700);
+      await wait(40);
+      await buildThermalGrid();
+      setStatus(`تصوير حراري زراعي · <strong>كامل المزرعة المحددة + المشهد</strong>`);
+      addLog(`ALERT infection @ ${FARM.infection.target[0]}, ${FARM.infection.target[1]} r=${FARM.infection.radiusM}m`);
+      addLog("THERMAL AG: FLIR ironbow overlay on orchard canopy/soil");
+      if (layers.farm) layers.farm.setStyle({ fillOpacity: 0.04, weight: 3, color: "#163A8C" });
+      setLegend([
+        { color: "#163A8C", label: "بارد / مروي" },
+        { color: "#3DA89A", label: "غطاء نباتي" },
+        { color: "#E0C94A", label: "مختلط" },
+        { color: "#C44A18", label: "صحراء / إجهاد حراري" },
+      ]);
+      startThermalStream();
+      try { parent.postMessage({ type: "cwsi:phase", phase: "thermal" }, "*"); } catch (_) {}
+    }
 
+    async function runObservationWindow() {
+      if (observationRunning) return;
+      observationRunning = true;
+      document.getElementById("btnNext").disabled = true;
+      const sweepBtn = document.getElementById("cwsiSweep");
+      if (sweepBtn) sweepBtn.disabled = true;
+      setStatus(`نافذة رصد حراري · <strong>مسح المستشعر فوق منطقة الإصابة</strong>`);
+      addLog("THERMAL observation window — sensor sweep");
+      const group = layers.infectGroup;
+      if (!group) {
+        observationRunning = false;
+        document.getElementById("btnNext").disabled = false;
+        return;
+      }
+      if (!ThermalAg.canvas) await buildThermalGrid();
+      const b = ThermalAg.bounds || L.latLngBounds(FARM.boundary);
+      const north = b.getNorth();
+      const south = b.getSouth();
+      const west = b.getWest();
+      const east = b.getEast();
+      const midLng = (west + east) / 2;
+      if (layers.thermalDrone) group.removeLayer(layers.thermalDrone);
+      const drone = L.marker([north, midLng], { icon: pinIcon("thermal", "◉") }).addTo(group);
+      layers.thermalDrone = drone;
+      const trail = [];
+      const line = L.polyline([], { color: "#FDE68A", weight: 2, opacity: 0.9 }).addTo(group);
+      const scanEl = document.getElementById("thermalScanLine");
+      ThermalAg.reveal = 1;
+      blitThermalAg();
+
+      const strips = 42;
+      for (let i = 0; i <= strips; i++) {
+        const t = i / strips;
+        ThermalAg.reveal = t;
+        blitThermalAg();
+        const lat = north - t * (north - south);
+        drone.setLatLng([lat, midLng]);
+        trail.push([lat, midLng]);
+        line.setLatLngs(trail);
+        if (scanEl && mapWrap) {
+          const pt = map.latLngToContainerPoint([lat, midLng]);
+          scanEl.classList.add("show");
+          scanEl.style.top = `${pt.y}px`;
+        }
+        setStatus(`مسح حراري FLIR · <strong>${Math.round(t * 100)}%</strong>`);
+        await wait(55);
+      }
+      if (scanEl) scanEl.classList.remove("show");
+      ThermalAg.reveal = 1;
+      blitThermalAg();
+      observationDone = true;
+      observationRunning = false;
+      const cw = lastThermal ? lastThermal.sample.cwsi.toFixed(2) : "—";
+      addLog(`THERMAL sweep complete peakCWSI=${peakCwsi.toFixed(2)} last=${cw}`);
+      setStatus(`رصد حراري مكتمل · <strong>CWSI ${cw} — جاهز لمسار الفريق</strong>`);
+      document.getElementById("btnNext").disabled = false;
+      updateButtons();
+      updateInfectDashboard(lastThermal);
+      try { parent.postMessage({ type: "cwsi:phase", phase: "observed" }, "*"); } catch (_) {}
+    }
+
+    async function showTeamPath() {
+      const group = layers.infectGroup || L.layerGroup().addTo(map);
+      layers.infectGroup = group;
+      document.getElementById("btnNext").disabled = true;
       const path = FARM.infection.path || [];
       if (path.length > 0) {
         const linePts = [];
@@ -1086,16 +1910,19 @@
           group.addLayer(m);
           setStatus(`مسار الفريق · <strong>نقطة ${i + 1} / ${path.length}</strong>`);
           addLog(`NAV point ${i + 1}`);
-          renderStepBody();
         }
         setStatus(`اشتباه إصابة · <strong>تعفن أسود مرصود — الفريق في الموقع</strong>`);
       }
-
+      pathShown = true;
       document.getElementById("btnNext").disabled = false;
       setLegend([
-        { color: INFECT, label: "دائرة اشتباه إصابة + رطوبة" },
-        ...(path.length ? [{ color: WARN, label: "نقاط مسار متسلسلة" }] : []),
+        { color: "#047857", label: "CWSI مثالي" },
+        { color: "#D97706", label: "إجهاد متوسط" },
+        { color: "#B91C1C", label: "إجهاد حرج" },
+        { color: INFECT, label: "مسار الفريق" },
       ]);
+      updateButtons();
+      try { parent.postMessage({ type: "cwsi:phase", phase: "path" }, "*"); } catch (_) {}
     }
 
     function showSoil() {
@@ -1179,6 +2006,16 @@
         infectionRadiusM: FARM.infection.radiusM,
         humidity: FARM.infection.humidityPoints,
         diagnosis: FARM.infection.diagnosis,
+        thermal: lastThermal ? {
+          cwsi: lastThermal.sample.cwsi,
+          peakCwsi: +peakCwsi.toFixed(3),
+          Tc: lastThermal.sample.Tc,
+          Ta: lastThermal.sample.Ta,
+          VPD: lastThermal.sample.VPD,
+          Rs: lastThermal.sample.Rs,
+          band: lastThermal.sample.band,
+          hour: lastThermal.sample.timestamp,
+        } : null,
         soil: { ...r, score, verdict: soilVerdict(score).text, linkNote: FARM.soilSensor.linkNote },
         report: FARM.report,
         farmAreaHa: areaHa,
@@ -1191,6 +2028,10 @@
     function renderStepBody() {
       const body = document.getElementById("stepContent");
       const s = STEPS[step];
+      if (s.id !== "infect") {
+        teardownThermalUi();
+        infectUiReady = false;
+      }
       const r = FARM.soilSensor.readings;
       const score = calcSoilScore(r);
       const verd = soilVerdict(score);
@@ -1245,32 +2086,12 @@
           </div>
         `;
       } else if (s.id === "infect") {
-        const d = FARM.infection.diagnosis;
-        body.innerHTML = `
-          <h2>${s.title}</h2>
-          <p class="desc">دائرة برتقالية 98م مع قراءات رطوبة عالية على المحيط، ومسار الفريق إلى موقع الإصابة.</p>
-          <div class="card">
-            <h3>هدف التوجيه</h3>
-            <div class="metric"><span>الحالة</span><span class="badge warn">${d.risk}</span></div>
-            <div class="metric"><span>الهدف</span><strong>${FARM.infection.label}</strong></div>
-            <div class="metric"><span>الإحداثيات</span><strong dir="ltr">${FARM.infection.target[0].toFixed(6)}, ${FARM.infection.target[1].toFixed(6)}</strong></div>
-            <div class="metric"><span>نصف قطر الدائرة</span><strong>${FARM.infection.radiusM} م</strong></div>
-          </div>
-          <div class="card">
-            <h3>فحص الرطوبة حول المحيط</h3>
-            ${(FARM.infection.humidityPoints || []).map(h => `
-              <div class="metric">
-                <span>${h.id} — رطوبة ${h.value}</span>
-                <span class="badge warn">${h.level}</span>
-              </div>
-            `).join("")}
-          </div>
-          <div class="diag-box">
-            <strong>التشخيص:</strong> ${d.cause}<br/>
-            <strong>رصد ميداني:</strong> ${d.fieldFinding}
-          </div>
-          <div class="log" style="margin-top:0.65rem">${logLines.slice(-6).map(l => `<div class="line">${l}</div>`).join("") || "بانتظار العرض…"}</div>
-        `;
+        if (!document.getElementById("cwsiDash")) {
+          body.innerHTML = infectDashboardHtml();
+          bindInfectControls();
+          infectUiReady = true;
+        }
+        if (lastThermal) updateInfectDashboard(lastThermal);
       } else if (s.id === "soil") {
         body.innerHTML = `
           <h2>${s.title}</h2>
@@ -1307,6 +2128,7 @@
             <div class="kpi warn"><div class="kpi-val">${kpis.humidityMax}/10</div><div class="kpi-label">أعلى رطوبة محيط</div></div>
             <div class="kpi warn"><div class="kpi-val">${kpis.soilMoisture}%</div><div class="kpi-label">رطوبة التربة</div></div>
             <div class="kpi ${kpis.soilScore >= 70 ? "ok" : "danger"}"><div class="kpi-val">${kpis.soilScore}/100</div><div class="kpi-label">صحة التربة</div></div>
+            <div class="kpi ${kpis.peakCwsi >= 0.6 ? "danger" : kpis.peakCwsi >= 0.3 ? "warn" : "ok"}"><div class="kpi-val">${kpis.peakCwsi.toFixed(2)}</div><div class="kpi-label">ذروة CWSI الحراري</div></div>
             <div class="kpi danger"><div class="kpi-val">${kpis.infectRadiusM} م</div><div class="kpi-label">دائرة الإصابة الآن</div></div>
             <div class="kpi"><div class="kpi-val">${kpis.areaNowHa}</div><div class="kpi-label">هكتار مصاب الآن</div></div>
             <div class="kpi danger"><div class="kpi-val">+${kpis.spreadGrowthPct}%</div><div class="kpi-label">نمو متوقع خلال شهر</div></div>
@@ -1364,6 +2186,8 @@
         wasteTons: data.wasteTons,
         wasteSites: data.wasteCount,
         humidityMax: Math.max(...(FARM.infection.humidityPoints || []).map(h => h.value), 0),
+        peakCwsi: peakCwsi || (lastThermal ? lastThermal.sample.cwsi : 0),
+        lastTc: lastThermal ? lastThermal.sample.Tc : null,
         soilMoisture: data.soil.moisture,
         soilScore: data.soil.score,
         infectRadiusM: FARM.infection.radiusM,
@@ -1421,6 +2245,7 @@
     <div class="kpi"><b>${kpis.humidityMax}/10</b><span>أعلى رطوبة محيط الإصابة</span></div>
     <div class="kpi"><b>${kpis.soilMoisture}%</b><span>رطوبة التربة</span></div>
     <div class="kpi"><b>${kpis.soilScore}/100</b><span>مؤشر صحة التربة</span></div>
+    <div class="kpi"><b>${(kpis.peakCwsi || 0).toFixed(2)}</b><span>ذروة مؤشر الإجهاد المائي CWSI</span></div>
     <div class="kpi"><b>${kpis.infectRadiusM} م</b><span>نصف قطر الإصابة الحالي</span></div>
     <div class="kpi"><b>${kpis.areaNowHa} هكتار</b><span>مساحة الإصابة الآن</span></div>
     <div class="kpi"><b>${kpis.areaMonthHa} هكتار</b><span>مساحة متوقعة بعد شهر (بدون علاج)</span></div>
@@ -1460,6 +2285,12 @@
       };
     }
 
+    function infectNextLabel() {
+      if (!observationDone) return "تشغيل نافذة الرصد الحراري";
+      if (!pathShown) return "تشغيل مسار الفريق";
+      return "التالي: حساس التربة";
+    }
+
     function updateButtons() {
       const btnBack = document.getElementById("btnBack");
       const btnNext = document.getElementById("btnNext");
@@ -1467,8 +2298,8 @@
       const labels = [
         "تشغيل مسح الدرون",
         scanDone ? "التالي: رصد المخلفات" : "تشغيل المسح",
-        "التالي: مسار الإصابة",
-        "التالي: حساس التربة",
+        "التالي: رصد الإصابة",
+        infectNextLabel(),
         "التالي: التقرير والتنبؤ",
         "إعادة الاختبار",
       ];
@@ -1502,21 +2333,38 @@
       } else if (id === "waste") {
         step = 3;
         renderDots();
-        renderStepBody();
         updateButtons();
-        await showInfectionPath();
+        await enterInfectionThermal();
         updateButtons();
         return;
       } else if (id === "infect") {
+        if (!observationDone) {
+          await runObservationWindow();
+          updateButtons();
+          return;
+        }
+        if (!pathShown) {
+          await showTeamPath();
+          updateButtons();
+          return;
+        }
+        teardownThermalUi();
         step = 4;
         showSoil();
       } else if (id === "soil") {
         step = 5;
       } else {
         // إعادة
+        teardownThermalUi();
         step = 0;
         scanDone = false;
         logLines = [];
+        observationDone = false;
+        pathShown = false;
+        thermalDots = [];
+        destroyThermalAg();
+        peakCwsi = 0;
+        lastThermal = null;
         clearAllOverlays();
         showFarm();
       }
@@ -1528,28 +2376,28 @@
 
     function goBack() {
       if (step === 0) return;
+      if (STEPS[step].id === "infect") teardownThermalUi();
       step -= 1;
       clearAllOverlays();
       if (step === 0) showFarm();
       else if (step === 1) { showFarm(); setStatus(`مسح الدرون · <strong>${scanDone ? "مكتمل" : "جاهز"}</strong>`); }
       else if (step === 2) showWaste();
       else if (step === 3) {
-        showFarm();
-        const g = L.layerGroup().addTo(map);
-        drawInfectionTarget(g);
-        if ((FARM.infection.path || []).length) {
-          L.polyline(FARM.infection.path, { color: INFECT, weight: 3, dashArray: "6 8" }).addTo(g);
-          FARM.infection.path.forEach((p, i) => {
-            g.addLayer(L.marker(p, { icon: pinIcon("seq", String(i + 1)) }));
-          });
-        }
-        layers.infectGroup = g;
+        enterInfectionThermal();
+        renderDots();
+        updateButtons();
+        return;
       } else if (step === 4) showSoil();
       renderDots();
       renderStepBody();
       updateButtons();
     }
 
+    document.getElementById("stepContent").addEventListener("wheel", (e) => {
+      const el = e.currentTarget;
+      el.scrollTop += e.deltaY;
+      e.stopPropagation();
+    }, { passive: true });
     document.getElementById("btnNext").addEventListener("click", () => goNext());
     document.getElementById("btnBack").addEventListener("click", goBack);
 
@@ -1578,6 +2426,13 @@
     renderDots();
     renderStepBody();
     updateButtons();
+    window.__fieldScan = {
+      gotoInfect() {
+        step = 3;
+        renderDots();
+        return enterInfectionThermal().then(() => updateButtons());
+      },
+    };
   </script>
 </body>
 </html>
